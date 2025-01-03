@@ -1,8 +1,6 @@
-[package]
-name = "mikanos-rs-loader"
-version = "0.1.0"
-edition = "2024"
+[workspace]
 
-[dependencies]
-log = "0.4.22"
-uefi = { version = "0.33.0", features = ["panic_handler", "logger", "alloc", "global_allocator"] }
+members = [
+  "mikanos-rs-loader",
+  "mikanos-rs-kernel",
+]
