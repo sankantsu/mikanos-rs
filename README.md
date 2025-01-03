@@ -1,6 +1,9 @@
-# mikanos-rs-loader
+# mikanos-rs
 
-A UEFI bootloader for mikanos-rs.
+Rust implementation of educational OS [MikanOS](https://github.com/uchan-nos/mikanos).
+
+- mikanos-rs-loader: A UEFI bootloader for mikanos-rs.
+- mikanos-rs-kernel: The mikanos-rs kernel.
 
 # Requirements
 
