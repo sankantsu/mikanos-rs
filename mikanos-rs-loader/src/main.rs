@@ -133,7 +133,11 @@ fn main() -> Status {
         .unwrap();
     let entry = load_kernel(&mut kernel_file).expect("Failed to load kernel");
     info!("Successfully loaded kernel!");
-    info!("It will jump to kernel entry point.");
+
+    info!("Exiting boot services...");
+    // Is it correct to use LOADER_DATA type here?
+    let _ = unsafe { boot::exit_boot_services(boot::MemoryType::LOADER_DATA) };
+
     entry();
 
     info!("All done.");
