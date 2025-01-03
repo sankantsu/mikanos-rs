@@ -4,7 +4,7 @@ A UEFI bootloader for mikanos-rs.
 
 # Requirements
 
-- Requires Rust [edition 2024](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
+- Requires [Rust 2024 Edition](https://doc.rust-lang.org/edition-guide/rust-2024/index.html)
 
 # Setup
 
