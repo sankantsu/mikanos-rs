@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -ex
+
 # Build EFI image
 cargo build --target x86_64-unknown-uefi
 
