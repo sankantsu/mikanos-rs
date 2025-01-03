@@ -61,5 +61,6 @@ fn main() -> Status {
 
     info!("All done.");
     boot::stall(10_000_000);
+    loop {}
     Status::SUCCESS
 }
