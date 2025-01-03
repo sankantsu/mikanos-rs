@@ -2,4 +2,5 @@
 
 members = [
   "mikanos-rs-loader",
+  "mikanos-rs-kernel",
 ]
