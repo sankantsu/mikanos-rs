@@ -10,6 +10,7 @@ use goblin::elf;
 use log::info;
 use uefi::mem::memory_map::MemoryMap;
 use uefi::prelude::*;
+use uefi::proto::console::gop::GraphicsOutput;
 use uefi::proto::loaded_image::LoadedImage;
 use uefi::proto::media::file::{
     Directory, File, FileAttribute, FileHandle, FileInfo, FileMode, RegularFile,
@@ -107,6 +108,44 @@ fn load_kernel(kernel_file: &mut RegularFile) -> uefi::Result<EntryPoint> {
     Ok(entry)
 }
 
+fn open_gop() -> uefi::Result<boot::ScopedProtocol<GraphicsOutput>> {
+    let gop_handle = boot::get_handle_for_protocol::<GraphicsOutput>()?;
+
+    let gop = unsafe {
+        boot::open_protocol::<GraphicsOutput>(
+            boot::OpenProtocolParams {
+                handle: gop_handle,
+                agent: boot::image_handle(),
+                controller: None,
+            },
+            // Don't open in exclusive mode.
+            // That would break the connection between stdout and the video console.
+            // ref: https://github.com/rust-osdev/uefi-rs/issues/524
+            boot::OpenProtocolAttributes::GetProtocol,
+        )?
+    };
+    Ok(gop)
+}
+
+fn log_gop_info(gop: &mut GraphicsOutput) {
+    let (horizontal, vertical) = gop.current_mode_info().resolution();
+    let pixel_format = gop.current_mode_info().pixel_format();
+    let pixels_per_scanline = gop.current_mode_info().stride();
+    info!(
+        "Resolution: {}x{}, Pixel Format: {:?}, {} pixels/line",
+        horizontal, vertical, pixel_format, pixels_per_scanline
+    );
+
+    let frame_buffer_base = gop.frame_buffer().as_mut_ptr() as usize;
+    let frame_buffer_size = gop.frame_buffer().size();
+    info!(
+        "Frame Buffer: {:#x} - {:#x}, Size: {} bytes",
+        frame_buffer_base,
+        frame_buffer_base + frame_buffer_size,
+        frame_buffer_size
+    );
+}
+
 #[entry]
 fn main() -> Status {
     uefi::helpers::init().unwrap();
@@ -121,6 +160,13 @@ fn main() -> Status {
         )
         .expect("Failed to open memmap file.");
     save_memory_map(memmap_file).expect("Failed to save memory map.");
+
+    let mut gop = open_gop().expect("Failed to open gop.");
+    let buf = unsafe {
+        slice::from_raw_parts_mut(gop.frame_buffer().as_mut_ptr(), gop.frame_buffer().size())
+    };
+    buf.fill(255);
+    log_gop_info(&mut gop);
 
     let mut kernel_file = root_dir
         .open(
