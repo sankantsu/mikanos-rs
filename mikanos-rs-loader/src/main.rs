@@ -99,7 +99,7 @@ fn load_elf(elf_data: &[u8]) -> elf::Elf {
     prog
 }
 
-type EntryPoint = extern "sysv64" fn();
+type EntryPoint = extern "sysv64" fn(*mut u8, usize);
 fn load_kernel(kernel_file: &mut RegularFile) -> uefi::Result<EntryPoint> {
     let buf = read_file(kernel_file)?;
     info!("Read kernel file: size={}", buf.len());
@@ -162,10 +162,8 @@ fn main() -> Status {
     save_memory_map(memmap_file).expect("Failed to save memory map.");
 
     let mut gop = open_gop().expect("Failed to open gop.");
-    let buf = unsafe {
-        slice::from_raw_parts_mut(gop.frame_buffer().as_mut_ptr(), gop.frame_buffer().size())
-    };
-    buf.fill(255);
+    let frame_buffer_base = gop.frame_buffer().as_mut_ptr();
+    let frame_buffer_size = gop.frame_buffer().size();
     log_gop_info(&mut gop);
 
     let mut kernel_file = root_dir
@@ -184,7 +182,7 @@ fn main() -> Status {
     // Is it correct to use LOADER_DATA type here?
     let _ = unsafe { boot::exit_boot_services(boot::MemoryType::LOADER_DATA) };
 
-    entry();
+    entry(frame_buffer_base, frame_buffer_size);
 
     info!("All done.");
     boot::stall(10_000_000);
