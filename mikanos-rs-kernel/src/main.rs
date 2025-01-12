@@ -2,7 +2,7 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-use core::slice;
+use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -10,15 +10,15 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main(frame_buffer_base: *mut u8, frame_buffer_size: usize) {
-    let mut cnt = 0;
-    loop {
-        let buf = unsafe { slice::from_raw_parts_mut(frame_buffer_base, frame_buffer_size) };
-        if cnt % 2 == 0 {
-            buf.fill(0);
-        } else {
-            buf.fill(255);
+pub extern "C" fn kernel_main(frame_buffer: FrameBuffer) {
+    frame_buffer.fill(&PixelColor::new(255, 255, 255));
+    let rect_width = 200;
+    let rect_height = 100;
+    let offset = (100, 100);
+    for x in 0..rect_width {
+        for y in 0..rect_height {
+            frame_buffer.write_pixel(x + offset.0, y + offset.1, &PixelColor::new(0, 255, 0));
         }
-        cnt += 1;
     }
+    loop {}
 }
