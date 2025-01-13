@@ -38,8 +38,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
+name = "mikanos-rs-frame-buffer"
+version = "0.1.0"
+dependencies = [
+ "uefi",
+]
+
+[[package]]
 name = "mikanos-rs-kernel"
 version = "0.1.0"
+dependencies = [
+ "mikanos-rs-frame-buffer",
+]
 
 [[package]]
 name = "mikanos-rs-loader"
@@ -47,6 +57,7 @@ version = "0.1.0"
 dependencies = [
  "goblin",
  "log",
+ "mikanos-rs-frame-buffer",
  "uefi",
 ]
 

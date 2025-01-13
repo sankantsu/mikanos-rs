@@ -3,4 +3,5 @@
 members = [
   "mikanos-rs-loader",
   "mikanos-rs-kernel",
+  "mikanos-rs-frame-buffer",
 ]
