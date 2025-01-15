@@ -4,6 +4,9 @@
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 
+mod font;
+use font::HackGenFont;
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {}
@@ -20,5 +23,9 @@ pub extern "C" fn kernel_main(frame_buffer: FrameBuffer) {
             frame_buffer.write_pixel(x + offset.0, y + offset.1, &PixelColor::new(0, 255, 0));
         }
     }
+
+    let font = HackGenFont::new();
+    // こんな雰囲気のメソッドを実装して文字をフレームバッファに描画する？
+    // font.draw_string(&mut frame_buffer, "Hello, World!", 0, 0, &PixelColor::new(0, 0, 0));
     loop {}
 }
