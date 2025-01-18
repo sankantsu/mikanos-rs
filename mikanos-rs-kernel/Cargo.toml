@@ -5,3 +5,6 @@ edition = "2024"
 
 [dependencies]
 mikanos-rs-frame-buffer = { path = "../mikanos-rs-frame-buffer" }
+lazy_static = { version = "1.0", features = ["spin_no_std"] }
+spin = "0.5.2"
+uart_16550 = "0.2.0"

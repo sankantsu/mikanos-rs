@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod serial;
+
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 
@@ -20,5 +22,6 @@ pub extern "C" fn kernel_main(frame_buffer: FrameBuffer) {
             frame_buffer.write_pixel(x + offset.0, y + offset.1, &PixelColor::new(0, 255, 0));
         }
     }
+    serial_println!("Hello World!");
     loop {}
 }
