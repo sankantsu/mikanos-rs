@@ -17,7 +17,7 @@ cp target/x86_64-mikanos_rs/debug/mikanos-rs-kernel esp/kernel.elf
 
 # Launch VM
 qemu-system-x86_64 \
-  -monitor stdio \
+  -serial stdio \
   -drive if=pflash,format=raw,readonly=on,file=assets/OVMF_CODE.fd \
   -drive if=pflash,format=raw,readonly=on,file=assets/OVMF_VARS.fd \
   -drive format=raw,file=fat:rw:esp
