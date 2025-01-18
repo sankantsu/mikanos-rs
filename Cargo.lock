@@ -67,6 +67,7 @@ dependencies = [
  "mikanos-rs-frame-buffer",
  "spin 0.5.2",
  "uart_16550",
+ "uefi",
 ]
 
 [[package]]

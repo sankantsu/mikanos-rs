@@ -8,7 +8,7 @@ use core::slice;
 
 use goblin::elf;
 use log::info;
-use uefi::mem::memory_map::MemoryMap;
+use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 use uefi::prelude::*;
 use uefi::proto::console::gop::GraphicsOutput;
 use uefi::proto::loaded_image::LoadedImage;
@@ -101,7 +101,7 @@ fn load_elf(elf_data: &[u8]) -> elf::Elf {
     prog
 }
 
-type EntryPoint = extern "sysv64" fn(FrameBuffer);
+type EntryPoint = extern "sysv64" fn(FrameBuffer, MemoryMapOwned);
 fn load_kernel(kernel_file: &mut RegularFile) -> uefi::Result<EntryPoint> {
     let buf = read_file(kernel_file)?;
     info!("Read kernel file: size={}", buf.len());
@@ -181,9 +181,8 @@ fn main() -> Status {
 
     info!("Exiting boot services...");
     // Is it correct to use LOADER_DATA type here?
-    let _ = unsafe { boot::exit_boot_services(boot::MemoryType::LOADER_DATA) };
-
-    entry(frame_buffer);
+    let memory_map = unsafe { boot::exit_boot_services(boot::MemoryType::LOADER_DATA) };
+    entry(frame_buffer, memory_map);
 
     info!("All done.");
     boot::stall(10_000_000);
