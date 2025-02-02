@@ -12,8 +12,38 @@ fn panic(_info: &PanicInfo) -> ! {
     loop {}
 }
 
+#[repr(C, align(16))]
+struct KernelStack([u8; 1024 * 1024]);
+
+impl KernelStack {
+    #[inline(always)]
+    const fn new() -> Self {
+        Self([0; 1024 * 1024])
+    }
+
+    #[inline(always)]
+    pub fn end_addr(&self) -> u64 {
+        self.0.as_ptr() as u64 + 1024 * 1024
+    }
+}
+
+const _KERNEL_MAIN_STACK: KernelStack = KernelStack::new();
+
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main(frame_buffer: FrameBuffer, memory_map: MemoryMapOwned) {
+pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
+    let stack_top = _KERNEL_MAIN_STACK.end_addr();
+    core::arch::asm!(
+        "mov rsp, {0}",
+        "call kernel_main_new_stack",
+        in(reg) stack_top,
+        in("rdi") frame_buffer,
+        in("rsi") memory_map,
+        clobber_abi("C"),
+    );
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
     let rect_width = 200;
     let rect_height = 100;

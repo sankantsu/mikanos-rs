@@ -73,7 +73,7 @@ fn load_elf(elf_data: &[u8]) -> elf::Elf {
     prog
 }
 
-type EntryPoint = extern "sysv64" fn(FrameBuffer, MemoryMapOwned);
+type EntryPoint = extern "sysv64" fn(&FrameBuffer, &MemoryMapOwned);
 fn load_kernel(kernel_file: &mut RegularFile) -> uefi::Result<EntryPoint> {
     let buf = read_file(kernel_file)?;
     info!("Read kernel file: size={}", buf.len());
@@ -146,7 +146,7 @@ fn main() -> Status {
     info!("Exiting boot services...");
     // Is it correct to use LOADER_DATA type here?
     let memory_map = unsafe { boot::exit_boot_services(boot::MemoryType::LOADER_DATA) };
-    entry(frame_buffer, memory_map);
+    entry(&frame_buffer, &memory_map);
 
     info!("All done.");
     boot::stall(10_000_000);
