@@ -42,6 +42,38 @@ pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &Me
     );
 }
 
+const K_FONT_A: [u8; 16] = [
+    0b00000000, //
+    0b00011000, //    **
+    0b00011000, //    **
+    0b00011000, //    **
+    0b00011000, //    **
+    0b00100100, //   *  *
+    0b00100100, //   *  *
+    0b00100100, //   *  *
+    0b00100100, //   *  *
+    0b01111110, //  ******
+    0b01000010, //  *    *
+    0b01000010, //  *    *
+    0b01000010, //  *    *
+    0b11100111, // ***  ***
+    0b00000000, //
+    0b00000000, //
+];
+
+fn write_ascii(frame_buffer: &FrameBuffer, x: usize, y: usize, c: char, color: &PixelColor) {
+    if c != 'A' {
+        return;
+    }
+    for dy in 0..16 {
+        for dx in 0..8 {
+            if ((K_FONT_A[dy] << dx) & 0x80) != 0 {
+                frame_buffer.write_pixel(x + dx, y + dy, color);
+            }
+        }
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
@@ -53,6 +85,10 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
             frame_buffer.write_pixel(x + offset.0, y + offset.1, &PixelColor::new(0, 255, 0));
         }
     }
+
+    write_ascii(frame_buffer, 50, 50, 'A', &PixelColor::new(0, 0, 0));
+    write_ascii(frame_buffer, 58, 50, 'A', &PixelColor::new(0, 0, 0));
+
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
     for (i, desc) in memory_map.entries().enumerate() {
