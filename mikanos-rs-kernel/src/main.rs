@@ -1,7 +1,10 @@
 #![no_std]
 #![no_main]
 
+mod font;
 mod serial;
+
+use font::FONTS;
 
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
@@ -42,32 +45,10 @@ pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &Me
     );
 }
 
-const K_FONT_A: [u8; 16] = [
-    0b00000000, //
-    0b00011000, //    **
-    0b00011000, //    **
-    0b00011000, //    **
-    0b00011000, //    **
-    0b00100100, //   *  *
-    0b00100100, //   *  *
-    0b00100100, //   *  *
-    0b00100100, //   *  *
-    0b01111110, //  ******
-    0b01000010, //  *    *
-    0b01000010, //  *    *
-    0b01000010, //  *    *
-    0b11100111, // ***  ***
-    0b00000000, //
-    0b00000000, //
-];
-
-fn write_ascii(frame_buffer: &FrameBuffer, x: usize, y: usize, c: char, color: &PixelColor) {
-    if c != 'A' {
-        return;
-    }
+fn write_ascii(frame_buffer: &FrameBuffer, x: usize, y: usize, ch: usize, color: &PixelColor) {
     for dy in 0..16 {
         for dx in 0..8 {
-            if ((K_FONT_A[dy] << dx) & 0x80) != 0 {
+            if ((FONTS[ch][dy] << dx) & 0x80) != 0 {
                 frame_buffer.write_pixel(x + dx, y + dy, color);
             }
         }
@@ -86,8 +67,14 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
         }
     }
 
-    write_ascii(frame_buffer, 50, 50, 'A', &PixelColor::new(0, 0, 0));
-    write_ascii(frame_buffer, 58, 50, 'A', &PixelColor::new(0, 0, 0));
+    for ch in 0..256 {
+        let x0 = 50;
+        let y0 = 50;
+        let n_cols = 16;
+        let x = x0 + 8 * (ch % n_cols);
+        let y = y0 + 16 * (ch / n_cols);
+        write_ascii(frame_buffer, x, y, ch, &PixelColor::new(0, 0, 0));
+    }
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
