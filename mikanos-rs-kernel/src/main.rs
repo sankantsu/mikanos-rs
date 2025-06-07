@@ -63,6 +63,8 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
         frame_buffer.write_ascii(x, y, ch as u8, &PixelColor::new(0, 0, 0));
     }
 
+    frame_buffer.write_string(0, 306, "Hello, world!", &PixelColor::new(0, 0, 0));
+
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
     for (i, desc) in memory_map.entries().enumerate() {

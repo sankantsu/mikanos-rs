@@ -79,6 +79,12 @@ impl FrameBuffer {
         }
     }
 
+    pub fn write_string(&self, x: usize, y: usize, s: &str, color: &PixelColor) {
+        for (idx, ch) in s.as_bytes().iter().enumerate() {
+            self.write_ascii(x + 8 * idx, y, *ch, color);
+        }
+    }
+
     pub fn fill(&self, color: &PixelColor) {
         for x in 0..self.horizontal_resolution {
             for y in 0..self.vertical_resolution {
