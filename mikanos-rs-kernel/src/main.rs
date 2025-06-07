@@ -1,10 +1,7 @@
 #![no_std]
 #![no_main]
 
-mod font;
 mod serial;
-
-use font::FONTS;
 
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
@@ -45,16 +42,6 @@ pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &Me
     );
 }
 
-fn write_ascii(frame_buffer: &FrameBuffer, x: usize, y: usize, ch: usize, color: &PixelColor) {
-    for dy in 0..16 {
-        for dx in 0..8 {
-            if ((FONTS[ch][dy] << dx) & 0x80) != 0 {
-                frame_buffer.write_pixel(x + dx, y + dy, color);
-            }
-        }
-    }
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
@@ -73,7 +60,7 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
         let n_cols = 16;
         let x = x0 + 8 * (ch % n_cols);
         let y = y0 + 16 * (ch / n_cols);
-        write_ascii(frame_buffer, x, y, ch, &PixelColor::new(0, 0, 0));
+        frame_buffer.write_ascii(x, y, ch as u8, &PixelColor::new(0, 0, 0));
     }
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";

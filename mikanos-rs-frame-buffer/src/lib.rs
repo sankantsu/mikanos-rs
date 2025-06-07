@@ -1,7 +1,11 @@
 #![no_std]
 
+mod font;
+
 use core::slice;
 use uefi::proto::console::gop::{GraphicsOutput, PixelFormat};
+
+use font::FONTS;
 
 pub struct PixelColor {
     r: u8,
@@ -62,6 +66,16 @@ impl FrameBuffer {
                 p[4 * pixel_idx + 2] = c.r;
             }
             _ => unimplemented!(),
+        }
+    }
+
+    pub fn write_ascii(&self, x: usize, y: usize, ch: u8, color: &PixelColor) {
+        for dy in 0..16 {
+            for dx in 0..8 {
+                if ((FONTS[ch as usize][dy] << dx) & 0x80) != 0 {
+                    self.write_pixel(x + dx, y + dy, color);
+                }
+            }
         }
     }
 
