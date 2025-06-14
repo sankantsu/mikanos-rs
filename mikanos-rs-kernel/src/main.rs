@@ -46,25 +46,8 @@ pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &Me
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
-    let rect_width = 200;
-    let rect_height = 100;
-    let offset = (100, 100);
-    for x in 0..rect_width {
-        for y in 0..rect_height {
-            frame_buffer.write_pixel(x + offset.0, y + offset.1, &PixelColor::new(0, 255, 0));
-        }
-    }
 
-    for ch in 0..256 {
-        let x0 = 50;
-        let y0 = 50;
-        let n_cols = 16;
-        let x = x0 + 8 * (ch % n_cols);
-        let y = y0 + 16 * (ch / n_cols);
-        frame_buffer.write_ascii(x, y, ch as u8, &PixelColor::new(0, 0, 0));
-    }
 
-    frame_buffer.write_string(0, 306, "Hello, world!", &PixelColor::new(0, 0, 0));
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
