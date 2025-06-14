@@ -9,6 +9,7 @@ use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    serial_println!("Panic!");
     loop {}
 }
 
