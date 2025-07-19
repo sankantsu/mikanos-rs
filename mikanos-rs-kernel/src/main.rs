@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+mod pci;
 mod serial;
 
 use core::panic::PanicInfo;
@@ -138,6 +139,13 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
             }
         }
     }
+
+    // Scan PCI bus and find xHCI controller
+    let mut pci_bus_scanner = pci::PCIBusScanner::new();
+    pci_bus_scanner.scan_all();
+    serial_println!("PCI Bus enumeration done.");
+    let xhci_controller_addr = pci_bus_scanner.get_xhci_controller_address().unwrap();
+    serial_println!("Found a xHCI controller.");
 
     // FFI functionality tests
     let x = unsafe { add(3, 5) };

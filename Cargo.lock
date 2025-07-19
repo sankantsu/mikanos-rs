@@ -85,6 +85,7 @@ dependencies = [
  "spin 0.5.2",
  "uart_16550",
  "uefi",
+ "x86_64",
 ]
 
 [[package]]

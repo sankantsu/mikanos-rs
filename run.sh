@@ -20,4 +20,5 @@ qemu-system-x86_64 \
   -serial stdio \
   -drive if=pflash,format=raw,readonly=on,file=assets/OVMF_CODE.fd \
   -drive if=pflash,format=raw,readonly=on,file=assets/OVMF_VARS.fd \
-  -drive format=raw,file=fat:rw:esp
+  -drive format=raw,file=fat:rw:esp \
+  -device qemu-xhci
