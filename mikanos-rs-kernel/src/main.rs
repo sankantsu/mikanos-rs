@@ -7,6 +7,11 @@ use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 
+unsafe extern "C" {
+    fn add(a: i32, b: i32) -> i32;
+    fn foo() -> i32;
+}
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("Panic!");
@@ -133,6 +138,13 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
             }
         }
     }
+
+    // FFI functionality tests
+    let x = unsafe { add(3, 5) };
+    serial_println!("x is {}", x);
+
+    let x2 = unsafe { foo() };
+    serial_println!("x2 is {}", x2);
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
