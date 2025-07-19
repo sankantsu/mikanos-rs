@@ -51,6 +51,7 @@ fn main() {
         .include("../mikanos/kernel")
         .object(newlib_support_object)
         .file("./cpp/ffi.cpp")
+        .file("./cpp/logger.cpp")
         .file("../mikanos/kernel/libcxx_support.cpp")
         .files(usb_cxx_srcs)
         .compile("usb");
@@ -61,7 +62,10 @@ fn main() {
         .into_string()
         .unwrap();
 
+    println!("cargo::rerun-if-changed={current_dir}/cpp");
+    println!("cargo::rerun-if-changed={current_dir}/../mikanos/kernel");
     println!("cargo::rustc-link-search=native={current_dir}/x86_64-elf/lib");
     println!("cargo::rustc-link-lib=static=c++");
+    println!("cargo::rustc-link-lib=static=c++abi");
     println!("cargo::rustc-link-lib=static=c");
 }

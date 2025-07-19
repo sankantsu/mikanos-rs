@@ -3,6 +3,7 @@
 
 mod pci;
 mod serial;
+mod xhci;
 
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
@@ -146,6 +147,28 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
     serial_println!("PCI Bus enumeration done.");
     let xhci_controller_addr = pci_bus_scanner.get_xhci_controller_address().unwrap();
     serial_println!("Found a xHCI controller.");
+
+    // Initialize USB driver
+    let mmio_base = xhci_controller_addr.read_bar_64(0).unwrap();
+    crate::serial_println!("mmio_base: {:x}", mmio_base);
+
+    let xhc = xhci::Controller::new(mmio_base);
+    xhc.init();
+    serial_println!("xHCI initialization done.");
+    xhc.run();
+    serial_println!("Started running xHCI.");
+
+    xhci::initialize_mouse();
+    xhci::initialize_keyboard();
+
+    for i in 1..=16 {
+        xhc.configure_port(i);
+    }
+
+    serial_println!("Checking for a xhc event...");
+    loop {
+        xhc.process_event();
+    }
 
     // FFI functionality tests
     let x = unsafe { add(3, 5) };
