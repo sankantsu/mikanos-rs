@@ -1,4 +1,3 @@
-#include <array>
 #include "error.hpp"
 #include "logger.hpp"
 #include "usb/xhci/port.hpp"
@@ -56,25 +55,6 @@ void set_default_keyboard_observer() {
         [](uint8_t modifier, uint8_t keycode, bool press) {
             Log(kInfo, "Keyboard event: modifier=%d, keycode=%d, press=%d\n", modifier, keycode, press);
         };
-}
-
-// Test functions for FFI functionality
-
-int add(int a, int b) {
-    return a + b;
-}
-
-int foo() {
-    std::array<int, 16> v{};
-    for (int i = 0; i < 16; i++) {
-        v[i] = i;
-    }
-
-    int s = 0;
-    for (auto x : v) {
-        s += x;
-    }
-    return s;
 }
 
 }

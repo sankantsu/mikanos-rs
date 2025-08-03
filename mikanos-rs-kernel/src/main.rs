@@ -170,13 +170,6 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
         xhc.process_event();
     }
 
-    // FFI functionality tests
-    let x = unsafe { add(3, 5) };
-    serial_println!("x is {}", x);
-
-    let x2 = unsafe { foo() };
-    serial_println!("x2 is {}", x2);
-
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
     for (i, desc) in memory_map.entries().enumerate() {
