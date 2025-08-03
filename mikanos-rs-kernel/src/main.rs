@@ -9,11 +9,6 @@ use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 
-unsafe extern "C" {
-    fn add(a: i32, b: i32) -> i32;
-    fn foo() -> i32;
-}
-
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     serial_println!("Panic!");
