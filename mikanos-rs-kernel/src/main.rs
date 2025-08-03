@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+mod mouse;
 mod pci;
 mod serial;
 mod xhci;
@@ -135,6 +136,10 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
             }
         }
     }
+
+    // Draw a mouse pointer
+    let mouse_pos = (200, 100);
+    mouse::draw_mouse(frame_buffer, mouse_pos.0, mouse_pos.1);
 
     // Scan PCI bus and find xHCI controller
     let mut pci_bus_scanner = pci::PCIBusScanner::new();
