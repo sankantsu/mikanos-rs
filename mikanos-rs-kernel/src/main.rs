@@ -8,6 +8,7 @@ mod xhci;
 
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
+use mouse::{Mouse, MouseEvent};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 
 #[panic_handler]
@@ -138,8 +139,15 @@ pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: 
     }
 
     // Draw a mouse pointer
-    let mouse_pos = (200, 100);
-    mouse::draw_mouse(frame_buffer, mouse_pos.0, mouse_pos.1);
+    let mut mouse = Mouse::new(frame_buffer, (200, 100));
+    mouse.draw_mouse();
+
+    for _ in 0..100 {
+        let dummy_event = MouseEvent::new(0, 3, 0);
+        mouse.move_mouse(&dummy_event);
+
+        for _ in 0..300000 {}
+    }
 
     // Scan PCI bus and find xHCI controller
     let mut pci_bus_scanner = pci::PCIBusScanner::new();
