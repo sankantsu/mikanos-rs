@@ -16,8 +16,8 @@ impl MouseEvent {
     }
 }
 
-pub struct Mouse<'a> {
-    frame_buffer: &'a FrameBuffer,
+pub struct Mouse {
+    frame_buffer: &'static FrameBuffer,
     current_pos: (usize, usize),
 }
 
@@ -98,8 +98,8 @@ const MOUSE_CURSOR: [[u8; MOUSE_CURSOR_WIDTH]; MOUSE_CURSOR_HEIGHT] = [
     ],
 ];
 
-impl<'a> Mouse<'a> {
-    pub fn new(frame_buffer: &'a FrameBuffer, initial_pos: (usize, usize)) -> Self {
+impl Mouse {
+    pub fn new(frame_buffer: &'static FrameBuffer, initial_pos: (usize, usize)) -> Self {
         Self {
             frame_buffer,
             current_pos: initial_pos,

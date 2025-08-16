@@ -98,7 +98,10 @@ impl<'a> Console<'a> {
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
+pub unsafe extern "C" fn kernel_main(
+    frame_buffer: &'static FrameBuffer,
+    memory_map: &'static MemoryMapOwned,
+) {
     let stack_top = _KERNEL_MAIN_STACK.end_addr();
     core::arch::asm!(
         "mov rsp, {0}",
@@ -111,7 +114,10 @@ pub unsafe extern "C" fn kernel_main(frame_buffer: &FrameBuffer, memory_map: &Me
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn kernel_main_new_stack(frame_buffer: &FrameBuffer, memory_map: &MemoryMapOwned) {
+pub extern "C" fn kernel_main_new_stack(
+    frame_buffer: &'static FrameBuffer,
+    memory_map: &'static MemoryMapOwned,
+) {
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
     let mut console = Console::new(
