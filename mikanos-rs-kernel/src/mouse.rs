@@ -109,10 +109,16 @@ impl Mouse {
     pub fn move_mouse(&mut self, mouse_event: &MouseEvent) {
         self.erase_mouse();
         let (current_x, current_y) = self.current_pos;
-        let (new_x, new_y) = (
-            current_x + mouse_event.displacement_x as usize,
-            current_y + mouse_event.displacement_y as usize,
-        );
+        let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line() as i32;
+        let vertical_resolution = self.frame_buffer.get_vertical_resolution() as i32;
+        let new_x = i32::min(
+            pixels_per_scan_line,
+            i32::max(0, (current_x as i32) + (mouse_event.displacement_x as i32)),
+        ) as usize;
+        let new_y = i32::min(
+            vertical_resolution,
+            i32::max(0, (current_y as i32) + (mouse_event.displacement_y as i32)),
+        ) as usize;
         self.current_pos = (new_x, new_y);
         self.draw_mouse();
     }
@@ -122,6 +128,11 @@ impl Mouse {
         for dy in 0..MOUSE_CURSOR_HEIGHT {
             for dx in 0..MOUSE_CURSOR_WIDTH {
                 let c = MOUSE_CURSOR[dy][dx];
+                let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
+                let vertical_resolution = self.frame_buffer.get_vertical_resolution();
+                if x + dx >= pixels_per_scan_line || y + dy >= vertical_resolution {
+                    continue;
+                }
                 if c == b'@' {
                     let black = &PixelColor::new(0, 0, 0);
                     self.frame_buffer.write_pixel(x + dx, y + dy, black);
@@ -138,6 +149,11 @@ impl Mouse {
         for dy in 0..MOUSE_CURSOR_HEIGHT {
             for dx in 0..MOUSE_CURSOR_WIDTH {
                 let c = MOUSE_CURSOR[dy][dx];
+                let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
+                let vertical_resolution = self.frame_buffer.get_vertical_resolution();
+                if old_x + dx >= pixels_per_scan_line || old_y + dy >= vertical_resolution {
+                    continue;
+                }
                 self.frame_buffer.write_pixel(
                     old_x + dx,
                     old_y + dy,

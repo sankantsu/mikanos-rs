@@ -42,6 +42,14 @@ impl FrameBuffer {
         }
     }
 
+    pub fn get_pixels_per_scan_line(&self) -> usize {
+        self.pixels_per_scanline
+    }
+
+    pub fn get_vertical_resolution(&self) -> usize {
+        self.vertical_resolution
+    }
+
     pub fn size(&self) -> usize {
         4 * self.pixels_per_scanline * self.vertical_resolution
     }

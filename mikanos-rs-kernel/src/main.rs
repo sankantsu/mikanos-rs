@@ -149,7 +149,7 @@ pub extern "C" fn kernel_main_new_stack(
     mouse.draw_mouse();
 
     for _ in 0..100 {
-        let dummy_event = MouseEvent::new(0, 3, 0);
+        let dummy_event = MouseEvent::new(0, -10, 0);
         mouse.move_mouse(&dummy_event);
 
         for _ in 0..300000 {}
