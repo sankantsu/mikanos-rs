@@ -144,13 +144,14 @@ pub extern "C" fn kernel_main_new_stack(
         }
     }
 
-    // Draw a mouse pointer
-    let mut mouse = Mouse::new(frame_buffer, (200, 100));
-    mouse.draw_mouse();
-
+    *mouse::get_mouse().lock() = Some(Mouse::new(frame_buffer, (200, 100)));
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
-        mouse.move_mouse(&dummy_event);
+        mouse::get_mouse()
+            .lock()
+            .as_mut()
+            .unwrap()
+            .move_mouse(&dummy_event);
 
         for _ in 0..300000 {}
     }

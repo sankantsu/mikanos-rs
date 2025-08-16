@@ -43,10 +43,14 @@ int process_xhci_event(usb::xhci::Controller* xhc) {
     return res;
 }
 
-void set_default_mouse_observer() {
+extern "C" typedef void (*MouseObserverType)(uint8_t buttons, int8_t displacement_x,
+                                             int8_t displacement_y);
+
+void set_default_mouse_observer(MouseObserverType mouse_observer) {
     usb::HIDMouseDriver::default_observer =
-        [](uint8_t buttons, int8_t displacement_x, int8_t displacement_y) {
+        [mouse_observer](uint8_t buttons, int8_t displacement_x, int8_t displacement_y) {
             Log(kInfo, "Mouse event: buttons=%d, displacement=(%d,%d)\n", buttons, displacement_x, displacement_y);
+			mouse_observer(buttons, displacement_x, displacement_y);
         };
 }
 

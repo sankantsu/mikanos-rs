@@ -21,6 +21,13 @@ pub struct Mouse {
     current_pos: (usize, usize),
 }
 
+unsafe impl Send for Mouse {}
+
+pub fn get_mouse() -> &'static spin::Mutex<Option<Mouse>> {
+    static MOUSE: spin::Mutex<Option<Mouse>> = spin::Mutex::new(None);
+    &MOUSE
+}
+
 const MOUSE_CURSOR_WIDTH: usize = 15;
 const MOUSE_CURSOR_HEIGHT: usize = 24;
 const MOUSE_CURSOR: [[u8; MOUSE_CURSOR_WIDTH]; MOUSE_CURSOR_HEIGHT] = [
@@ -162,4 +169,9 @@ impl Mouse {
             }
         }
     }
+}
+
+pub extern "C" fn observer(buttons: u8, displacement_x: i8, displacement_y: i8) {
+    let event = MouseEvent::new(buttons, displacement_x, displacement_y);
+    get_mouse().lock().as_mut().unwrap().move_mouse(&event);
 }

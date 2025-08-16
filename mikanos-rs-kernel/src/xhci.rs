@@ -42,6 +42,7 @@ impl ErrorCode {
         }
     }
 }
+type MouseObserverType = extern "C" fn(buttons: u8, displacement_x: i8, displacement_y: i8);
 
 unsafe extern "C" {
     fn create_xhci_controller(mmmio_base: u64) -> *mut Controller;
@@ -49,7 +50,7 @@ unsafe extern "C" {
     fn start_xhci_controller(xhc: &mut Controller) -> ErrorCode;
     fn configure_xhci_port(xhc: &mut Controller, port_num: u8) -> ErrorCode;
     fn process_xhci_event(xhc: &mut Controller) -> ErrorCode;
-    fn set_default_mouse_observer();
+    fn set_default_mouse_observer(observer: MouseObserverType);
     fn set_default_keyboard_observer();
 }
 
@@ -89,7 +90,7 @@ impl Controller {
 }
 
 pub fn initialize_mouse() {
-    unsafe { set_default_mouse_observer() };
+    unsafe { set_default_mouse_observer(crate::mouse::observer) };
 }
 
 pub fn initialize_keyboard() {
