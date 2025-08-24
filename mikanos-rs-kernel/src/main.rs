@@ -34,8 +34,8 @@ impl KernelStack {
 
 const _KERNEL_MAIN_STACK: KernelStack = KernelStack::new();
 
-struct Console<'a> {
-    frame_buffer: &'a FrameBuffer,
+struct Console {
+    frame_buffer: &'static FrameBuffer,
     fg_color: PixelColor,
     bg_color: PixelColor,
     cursor_row: usize,
@@ -43,10 +43,14 @@ struct Console<'a> {
     buffer: [[u8; Console::N_COLS]; Console::N_ROWS],
 }
 
-impl<'a> Console<'a> {
+impl Console {
     const N_ROWS: usize = 37;
     const N_COLS: usize = 100;
-    pub fn new(frame_buffer: &'a FrameBuffer, fg_color: PixelColor, bg_color: PixelColor) -> Self {
+    pub fn new(
+        frame_buffer: &'static FrameBuffer,
+        fg_color: PixelColor,
+        bg_color: PixelColor,
+    ) -> Self {
         Self {
             frame_buffer,
             fg_color,
