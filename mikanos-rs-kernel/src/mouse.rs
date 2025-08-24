@@ -30,79 +30,31 @@ pub fn get_mouse() -> &'static spin::Mutex<Option<Mouse>> {
 
 const MOUSE_CURSOR_WIDTH: usize = 15;
 const MOUSE_CURSOR_HEIGHT: usize = 24;
-const MOUSE_CURSOR: [[u8; MOUSE_CURSOR_WIDTH]; MOUSE_CURSOR_HEIGHT] = [
-    [
-        b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b'@', b'@', b'@', b'@', b'@', b'@', b'@',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'.', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'.', b'@', b'@', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'.', b'@', b' ', b'@', b'.', b'@', b' ', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'.', b'@', b' ', b' ', b' ', b'@', b'.', b'@', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'.', b'@', b' ', b' ', b' ', b' ', b'@', b'.', b'@', b' ', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b'@', b' ', b' ', b' ', b' ', b' ', b' ', b'@', b'.', b'@', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b'@', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b'@', b'.', b'@', b' ', b' ', b' ', b' ',
-    ],
-    [
-        b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b'@', b'.', b'@', b' ', b' ', b' ',
-    ],
-    [
-        b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b' ', b'@', b'@', b'@', b' ', b' ', b' ',
-    ],
+const MOUSE_CURSOR: [&'static str; MOUSE_CURSOR_HEIGHT] = [
+    "@              ",
+    "@@             ",
+    "@.@            ",
+    "@..@           ",
+    "@...@          ",
+    "@....@         ",
+    "@.....@        ",
+    "@......@       ",
+    "@.......@      ",
+    "@........@     ",
+    "@.........@    ",
+    "@..........@   ",
+    "@...........@  ",
+    "@............@ ",
+    "@......@@@@@@@@",
+    "@......@       ",
+    "@....@@.@      ",
+    "@...@ @.@      ",
+    "@..@   @.@     ",
+    "@.@    @.@     ",
+    "@@      @.@    ",
+    "@       @.@    ",
+    "         @.@   ",
+    "         @@@   ",
 ];
 
 impl Mouse {
@@ -134,7 +86,7 @@ impl Mouse {
         let (x, y) = self.current_pos;
         for dy in 0..MOUSE_CURSOR_HEIGHT {
             for dx in 0..MOUSE_CURSOR_WIDTH {
-                let c = MOUSE_CURSOR[dy][dx];
+                let c = MOUSE_CURSOR[dy].as_bytes()[dx];
                 let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
                 let vertical_resolution = self.frame_buffer.get_vertical_resolution();
                 if x + dx >= pixels_per_scan_line || y + dy >= vertical_resolution {
@@ -155,7 +107,7 @@ impl Mouse {
         let (old_x, old_y) = self.current_pos;
         for dy in 0..MOUSE_CURSOR_HEIGHT {
             for dx in 0..MOUSE_CURSOR_WIDTH {
-                let c = MOUSE_CURSOR[dy][dx];
+                let c = MOUSE_CURSOR[dy].as_bytes()[dx];
                 let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
                 let vertical_resolution = self.frame_buffer.get_vertical_resolution();
                 if old_x + dx >= pixels_per_scan_line || old_y + dy >= vertical_resolution {
