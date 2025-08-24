@@ -129,18 +129,11 @@ pub extern "C" fn kernel_main_new_stack(
     let mut cnt = 0;
     for _ in 0..4 {
         for i in 0..10 {
-            // if cnt == Console::N_ROWS {
-            //     break;
-            // }
             let mut format_str: [u8; 256] = [0; 256];
             (&mut format_str[0..13]).copy_from_slice("? HelloWorld\n".as_bytes());
             format_str[0] = b'0' + i;
             console.put_string(core::str::from_utf8(&format_str[0..13]).unwrap());
             cnt += 1;
-            // add delay
-            if cnt >= Console::N_ROWS - 1 {
-                for _ in 0..30000000 {}
-            }
         }
     }
 
