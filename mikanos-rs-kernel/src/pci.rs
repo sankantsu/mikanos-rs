@@ -145,9 +145,6 @@ impl PCIAddress {
     }
     pub fn read_bar_64(&self, idx: u8) -> Option<u64> {
         assert!(idx < 5);
-        let addr = 0x10 + 4 * idx;
-        // let bar0 = self.read_data_at(addr) as u64;
-        // let bar1 = self.read_data_at(addr + 4) as u64;
         let bar0 = self.read_data_at(0x10) as u64;
         let bar1 = self.read_data_at(0x14) as u64;
         let addr_type = bar0 & 0x7;

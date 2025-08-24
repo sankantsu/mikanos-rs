@@ -107,14 +107,16 @@ pub unsafe extern "C" fn kernel_main(
     memory_map: &'static MemoryMapOwned,
 ) {
     let stack_top = _KERNEL_MAIN_STACK.end_addr();
-    core::arch::asm!(
-        "mov rsp, {0}",
-        "call kernel_main_new_stack",
-        in(reg) stack_top,
-        in("rdi") frame_buffer,
-        in("rsi") memory_map,
-        clobber_abi("C"),
-    );
+    unsafe {
+        core::arch::asm!(
+            "mov rsp, {0}",
+            "call kernel_main_new_stack",
+            in(reg) stack_top,
+            in("rdi") frame_buffer,
+            in("rsi") memory_map,
+            clobber_abi("C"),
+        );
+    }
 }
 
 #[unsafe(no_mangle)]
@@ -130,14 +132,12 @@ pub extern "C" fn kernel_main_new_stack(
         PixelColor::new(255, 255, 255),
     );
 
-    let mut cnt = 0;
     for _ in 0..4 {
         for i in 0..10 {
             let mut format_str: [u8; 256] = [0; 256];
             (&mut format_str[0..13]).copy_from_slice("? HelloWorld\n".as_bytes());
             format_str[0] = b'0' + i;
             console.put_string(core::str::from_utf8(&format_str[0..13]).unwrap());
-            cnt += 1;
         }
     }
 

@@ -14,6 +14,7 @@ fn main() {
     }
 
     let newlib_support_object = cc::Build::new()
+        .flag("-Wno-unused-parameter")
         .flag("-ffreestanding")
         .flag("-mno-red-zone")
         .flag("-fshort-wchar")
@@ -36,6 +37,8 @@ fn main() {
     // Build C++ library
     cc::Build::new()
         .flag("-std=c++17")
+        .flag("-Wno-unused-parameter")
+        .flag("-Wno-sign-compare")
         .flag("-ffreestanding")
         .flag("-mno-red-zone")
         .flag("-nostdlibinc")

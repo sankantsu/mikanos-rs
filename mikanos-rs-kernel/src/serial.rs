@@ -41,8 +41,8 @@ unsafe extern "C" {
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn mikanos_rs_serial_print(msg: *const u8) {
-    let len = strlen(msg);
-    let cstr = core::slice::from_raw_parts(msg, len);
+    let len = unsafe { strlen(msg) };
+    let cstr = unsafe { core::slice::from_raw_parts(msg, len) };
     let s = core::str::from_utf8(cstr).unwrap();
     serial_print!("{}", s);
 }

@@ -107,7 +107,6 @@ impl Mouse {
         let (old_x, old_y) = self.current_pos;
         for dy in 0..MOUSE_CURSOR_HEIGHT {
             for dx in 0..MOUSE_CURSOR_WIDTH {
-                let c = MOUSE_CURSOR[dy].as_bytes()[dx];
                 let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
                 let vertical_resolution = self.frame_buffer.get_vertical_resolution();
                 if old_x + dx >= pixels_per_scan_line || old_y + dy >= vertical_resolution {
