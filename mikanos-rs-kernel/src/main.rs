@@ -8,7 +8,7 @@ mod xhci;
 
 use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
-use mouse::{Mouse, MouseEvent};
+use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
 
 #[panic_handler]
@@ -141,14 +141,10 @@ pub extern "C" fn kernel_main_new_stack(
         }
     }
 
-    *mouse::get_mouse().lock() = Some(Mouse::new(frame_buffer, (200, 100)));
+    init_mouse(frame_buffer, (200, 100));
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
-        mouse::get_mouse()
-            .lock()
-            .as_mut()
-            .unwrap()
-            .move_mouse(&dummy_event);
+        mouse::get_mouse().lock().move_mouse(&dummy_event);
 
         for _ in 0..300000 {}
     }

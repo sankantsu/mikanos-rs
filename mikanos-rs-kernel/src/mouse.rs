@@ -21,11 +21,18 @@ pub struct Mouse {
     current_pos: (usize, usize),
 }
 
+static MOUSE: spin::Once<spin::Mutex<Mouse>> = spin::Once::new();
+
+// See https://github.com/sankantsu/mikanos-rs/issues/17
 unsafe impl Send for Mouse {}
 
-pub fn get_mouse() -> &'static spin::Mutex<Option<Mouse>> {
-    static MOUSE: spin::Mutex<Option<Mouse>> = spin::Mutex::new(None);
-    &MOUSE
+pub fn init_mouse(frame_buffer: &'static FrameBuffer, initial_pos: (usize, usize)) {
+    MOUSE.call_once(|| spin::Mutex::new(Mouse::new(frame_buffer, initial_pos)));
+    ()
+}
+
+pub fn get_mouse() -> &'static spin::Mutex<Mouse> {
+    MOUSE.get().unwrap()
 }
 
 const MOUSE_CURSOR_WIDTH: usize = 15;
@@ -124,5 +131,5 @@ impl Mouse {
 
 pub extern "C" fn observer(buttons: u8, displacement_x: i8, displacement_y: i8) {
     let event = MouseEvent::new(buttons, displacement_x, displacement_y);
-    get_mouse().lock().as_mut().unwrap().move_mouse(&event);
+    get_mouse().lock().move_mouse(&event);
 }
