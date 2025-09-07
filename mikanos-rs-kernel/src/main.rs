@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
+mod interrupt;
 mod mouse;
 mod pci;
 mod serial;
@@ -10,6 +12,7 @@ use core::panic::PanicInfo;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
+use xhci::{get_xhc, init_xhc};
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -160,22 +163,21 @@ pub extern "C" fn kernel_main_new_stack(
     let mmio_base = xhci_controller_addr.read_bar_64(0).unwrap();
     crate::serial_println!("mmio_base: {:x}", mmio_base);
 
-    let xhc = xhci::Controller::new(mmio_base);
-    xhc.init();
+    init_xhc(mmio_base);
     serial_println!("xHCI initialization done.");
-    xhc.run();
+    get_xhc().lock().run();
     serial_println!("Started running xHCI.");
 
     xhci::initialize_mouse();
     xhci::initialize_keyboard();
 
     for i in 1..=16 {
-        xhc.configure_port(i);
+        get_xhc().lock().configure_port(i);
     }
 
     serial_println!("Checking for a xhc event...");
     loop {
-        xhc.process_event();
+        get_xhc().lock().process_event();
     }
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
