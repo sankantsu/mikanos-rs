@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
-
+#[allow(static_mut_refs)]
 mod interrupt;
 mod mouse;
 mod pci;
@@ -127,6 +127,8 @@ pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
 ) {
+    interrupt::init_idt();
+
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
     let mut console = Console::new(
