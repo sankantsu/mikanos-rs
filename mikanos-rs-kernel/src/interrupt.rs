@@ -173,6 +173,13 @@ pub fn init_idt() {
     crate::serial_print!("IDT initialization done.")
 }
 
+#[inline]
+pub fn enable_maskable_interrupts() {
+    unsafe {
+        core::arch::asm!("sti");
+    }
+}
+
 fn notify_end_of_interrupt() {
     let eoi_reg = 0xfee000b0 as *mut u32;
     unsafe { *eoi_reg = 0 };

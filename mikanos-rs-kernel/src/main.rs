@@ -9,6 +9,7 @@ mod serial;
 mod xhci;
 
 use core::panic::PanicInfo;
+use interrupt::enable_maskable_interrupts;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
@@ -186,6 +187,9 @@ pub extern "C" fn kernel_main_new_stack(
     for i in 1..=16 {
         get_xhc().lock().configure_port(i);
     }
+
+    // Start responding hardware interrupts.
+    enable_maskable_interrupts();
 
     serial_println!("Checking for a xhc event...");
     loop {}
