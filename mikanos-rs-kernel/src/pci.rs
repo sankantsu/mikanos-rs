@@ -1,7 +1,29 @@
+use bitfield::bitfield;
 use x86_64::instructions::port::Port;
 
 const CONFIG_ADDRESS: u16 = 0x0cf8;
 const CONFIG_DATA: u16 = 0x0cfc;
+
+const CAP_MSI: u8 = 0x5;
+
+bitfield! {
+    #[repr(transparent)]
+    #[derive(Clone, Copy, Debug)]
+    pub struct MSIMessageControl(u16);
+    pub enable, set_enable : 0;
+    pub multiple_message_capable, _ : 3, 1;
+    pub multiple_message_enable, _ : 6, 4;
+    pub addr_64_capable, _ : 7;
+    pub _rsrv, _ : 15, 8;
+}
+
+#[derive(Debug)]
+struct MSICapability {
+    message_ctrl: MSIMessageControl,
+    message_addr: u32,
+    message_upper_addr: Option<u32>,
+    message_data: u32,
+}
 
 fn write_config_address(address: u32) {
     let mut port = Port::new(CONFIG_ADDRESS);
@@ -11,6 +33,11 @@ fn write_config_address(address: u32) {
 fn read_config_data() -> u32 {
     let mut port = Port::new(CONFIG_DATA);
     unsafe { port.read() }
+}
+
+fn write_config_data(data: u32) {
+    let mut port = Port::new(CONFIG_DATA);
+    unsafe { port.write(data) }
 }
 
 pub struct ClassCode {
@@ -113,6 +140,13 @@ impl PCIAddress {
         let data = read_config_data();
         data
     }
+    fn write_data_at(&self, offset: u8, data: u32) {
+        assert_eq!(offset % 4, 0); // must be 32bit aligned
+        let address = self.make_config_address(offset);
+        write_config_address(address);
+        let data = write_config_data(data);
+        data
+    }
     pub fn read_class_code(&self) -> ClassCode {
         let data = self.read_data_at(0x8);
         let class_code = (data >> 24) & 0xff;
@@ -142,6 +176,69 @@ impl PCIAddress {
         assert!(class_code.is_pci_to_pci_bridge());
         let data = self.read_data_at(0x18);
         (data >> 0x08) as u8
+    }
+    fn find_msi_capability(&self) -> Option<u8> {
+        let mut cap_ptr = (self.read_data_at(0x34) & 0xff) as u8;
+        let mut msi_cap_ptr = None;
+        while cap_ptr != 0 {
+            let cap_header = self.read_data_at(cap_ptr);
+            let cap_id = (cap_header & 0xff) as u8;
+            let next_ptr = ((cap_header >> 8) & 0xff) as u8;
+            if cap_id == CAP_MSI {
+                msi_cap_ptr = Some(cap_ptr);
+            }
+            cap_ptr = next_ptr;
+        }
+        msi_cap_ptr
+    }
+    fn read_msi_cap(&self, cap_addr: u8) -> MSICapability {
+        let header = self.read_data_at(cap_addr);
+        let cap_id = (header & 0xff) as u8;
+        assert_eq!(cap_id, CAP_MSI);
+        let msg_ctrl = MSIMessageControl(((header >> 16) & 0xffff) as u16);
+        if msg_ctrl.addr_64_capable() {
+            let msg_addr = self.read_data_at(cap_addr + 4);
+            let msg_upper_addr = self.read_data_at(cap_addr + 8);
+            let msg_data = self.read_data_at(cap_addr + 12);
+            MSICapability {
+                message_ctrl: msg_ctrl,
+                message_addr: msg_addr,
+                message_upper_addr: Some(msg_upper_addr),
+                message_data: msg_data,
+            }
+        } else {
+            let msg_addr = self.read_data_at(cap_addr + 4);
+            let msg_data = self.read_data_at(cap_addr + 8);
+            MSICapability {
+                message_ctrl: msg_ctrl,
+                message_addr: msg_addr,
+                message_upper_addr: None,
+                message_data: msg_data,
+            }
+        }
+    }
+    fn write_msi_cap(&self, cap_addr: u8, msi_cap: MSICapability) {
+        let header = (msi_cap.message_ctrl.0 as u32) << 16 | 0x05;
+        if msi_cap.message_ctrl.addr_64_capable() {
+            self.write_data_at(cap_addr, header);
+            self.write_data_at(cap_addr + 4, msi_cap.message_addr);
+            self.write_data_at(cap_addr + 8, msi_cap.message_upper_addr.unwrap());
+            self.write_data_at(cap_addr + 12, msi_cap.message_data);
+        } else {
+            self.write_data_at(cap_addr, header);
+            self.write_data_at(cap_addr + 4, msi_cap.message_addr);
+            self.write_data_at(cap_addr + 8, msi_cap.message_data);
+        }
+    }
+    pub fn configure_msi(&self, msg_addr: u32, msg_data: u32) -> Option<()> {
+        let cap_ptr = self.find_msi_capability()?;
+        let mut msi_cap = self.read_msi_cap(cap_ptr);
+        msi_cap.message_ctrl.set_enable(true);
+        msi_cap.message_addr = msg_addr;
+        msi_cap.message_data = msg_data;
+        self.write_msi_cap(cap_ptr, msi_cap);
+        let msi_cap_new = self.read_msi_cap(cap_ptr);
+        Some(())
     }
     pub fn read_bar_64(&self, idx: u8) -> Option<u64> {
         assert!(idx < 5);

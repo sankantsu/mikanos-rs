@@ -1,15 +1,19 @@
 #![no_std]
 #![no_main]
-
+#![feature(abi_x86_interrupt)]
+#[allow(static_mut_refs)]
+mod interrupt;
 mod mouse;
 mod pci;
 mod serial;
 mod xhci;
 
 use core::panic::PanicInfo;
+use interrupt::enable_maskable_interrupts;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
+use xhci::{get_xhc, init_xhc};
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
@@ -124,6 +128,8 @@ pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
 ) {
+    interrupt::init_idt();
+
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
     let mut console = Console::new(
@@ -156,27 +162,37 @@ pub extern "C" fn kernel_main_new_stack(
     let xhci_controller_addr = pci_bus_scanner.get_xhci_controller_address().unwrap();
     serial_println!("Found a xHCI controller.");
 
+    // Read local APIC ID (see Intel SDM Vol 3, 12.4.6)
+    let local_apic_id = unsafe { *(0xfee00020 as *const u32) >> 24 };
+    crate::serial_println!("local_apic_id: {:x}", local_apic_id);
+    // MSI message address and data (see Intel SDM Vol 3, 12.11)
+    let msg_addr = 0xfee00000 | (local_apic_id << 12);
+    let msg_data = 0xc000 | (interrupt::InterruptVector::XHCI as u32);
+    crate::serial_println!("msg_addr: {:x}", msg_addr);
+    crate::serial_println!("msg_data: {:x}", msg_data);
+    let msi_cap_ptr = xhci_controller_addr.configure_msi(msg_addr, msg_data);
+
     // Initialize USB driver
     let mmio_base = xhci_controller_addr.read_bar_64(0).unwrap();
     crate::serial_println!("mmio_base: {:x}", mmio_base);
 
-    let xhc = xhci::Controller::new(mmio_base);
-    xhc.init();
+    init_xhc(mmio_base);
     serial_println!("xHCI initialization done.");
-    xhc.run();
+    get_xhc().lock().run();
     serial_println!("Started running xHCI.");
 
     xhci::initialize_mouse();
     xhci::initialize_keyboard();
 
     for i in 1..=16 {
-        xhc.configure_port(i);
+        get_xhc().lock().configure_port(i);
     }
 
+    // Start responding hardware interrupts.
+    enable_maskable_interrupts();
+
     serial_println!("Checking for a xhc event...");
-    loop {
-        xhc.process_event();
-    }
+    loop {}
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);

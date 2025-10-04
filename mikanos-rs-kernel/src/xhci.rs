@@ -89,6 +89,17 @@ impl Controller {
     }
 }
 
+static XHC: spin::Once<spin::Mutex<&'static mut Controller>> = spin::Once::new();
+
+pub fn init_xhc(mmio_base: u64) {
+    XHC.call_once(|| spin::Mutex::new(Controller::new(mmio_base)));
+    get_xhc().lock().init();
+}
+
+pub fn get_xhc() -> &'static spin::Mutex<&'static mut Controller> {
+    XHC.get().unwrap()
+}
+
 pub fn initialize_mouse() {
     unsafe { set_default_mouse_observer(crate::mouse::observer) };
 }
