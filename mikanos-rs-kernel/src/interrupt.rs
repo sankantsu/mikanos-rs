@@ -3,6 +3,8 @@ use bitfield::bitfield;
 
 #[repr(u8)]
 pub enum InterruptVector {
+    DivisionError = 0x00,
+    DoubleFault = 0x08,
     XHCI = 0x40,
 }
 
@@ -140,6 +142,20 @@ static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 pub fn init_idt() {
     unsafe {
         IDT.set_entry(
+            InterruptVector::DivisionError as usize,
+            InterruptDescriptor::new(
+                IDTAttribute::new(DescriptorType::InterruptGate, 0),
+                handle_division_error as u64,
+            ),
+        );
+        IDT.set_entry(
+            InterruptVector::DoubleFault as usize,
+            InterruptDescriptor::new(
+                IDTAttribute::new(DescriptorType::InterruptGate, 0),
+                handle_double_fault as u64,
+            ),
+        );
+        IDT.set_entry(
             InterruptVector::XHCI as usize,
             InterruptDescriptor::new(
                 IDTAttribute::new(DescriptorType::InterruptGate, 0),
@@ -160,6 +176,16 @@ pub fn init_idt() {
 fn notify_end_of_interrupt() {
     let eoi_reg = 0xfee000b0 as *mut u32;
     unsafe { *eoi_reg = 0 };
+}
+
+pub extern "x86-interrupt" fn handle_division_error() {
+    crate::serial_println!("Zero division detected!");
+    panic!();
+}
+
+pub extern "x86-interrupt" fn handle_double_fault() {
+    crate::serial_println!("Double fault detected!");
+    panic!();
 }
 
 pub extern "x86-interrupt" fn handle_xhci_event() {
