@@ -161,6 +161,16 @@ pub extern "C" fn kernel_main_new_stack(
     let xhci_controller_addr = pci_bus_scanner.get_xhci_controller_address().unwrap();
     serial_println!("Found a xHCI controller.");
 
+    // Read local APIC ID (see Intel SDM Vol 3, 12.4.6)
+    let local_apic_id = unsafe { *(0xfee00020 as *const u32) >> 24 };
+    crate::serial_println!("local_apic_id: {:x}", local_apic_id);
+    // MSI message address and data (see Intel SDM Vol 3, 12.11)
+    let msg_addr = 0xfee00000 | (local_apic_id << 12);
+    let msg_data = 0xc000 | (interrupt::InterruptVector::XHCI as u32);
+    crate::serial_println!("msg_addr: {:x}", msg_addr);
+    crate::serial_println!("msg_data: {:x}", msg_data);
+    let msi_cap_ptr = xhci_controller_addr.configure_msi(msg_addr, msg_data);
+
     // Initialize USB driver
     let mmio_base = xhci_controller_addr.read_bar_64(0).unwrap();
     crate::serial_println!("mmio_base: {:x}", mmio_base);
@@ -178,9 +188,7 @@ pub extern "C" fn kernel_main_new_stack(
     }
 
     serial_println!("Checking for a xhc event...");
-    loop {
-        get_xhc().lock().process_event();
-    }
+    loop {}
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
