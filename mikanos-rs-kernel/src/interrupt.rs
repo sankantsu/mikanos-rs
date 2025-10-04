@@ -180,6 +180,13 @@ pub fn enable_maskable_interrupts() {
     }
 }
 
+#[inline]
+pub fn disable_maskable_interrupts() {
+    unsafe {
+        core::arch::asm!("cli");
+    }
+}
+
 fn notify_end_of_interrupt() {
     let eoi_reg = 0xfee000b0 as *mut u32;
     unsafe { *eoi_reg = 0 };
@@ -196,6 +203,7 @@ pub extern "x86-interrupt" fn handle_double_fault() {
 }
 
 pub extern "x86-interrupt" fn handle_xhci_event() {
-    get_xhc().lock().process_event();
+    use crate::event::Event;
+    crate::event::EVENT_QUEUE.lock().push(Event::XHCI);
     notify_end_of_interrupt();
 }

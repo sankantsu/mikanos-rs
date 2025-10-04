@@ -1,15 +1,17 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+mod event;
 #[allow(static_mut_refs)]
 mod interrupt;
 mod mouse;
 mod pci;
+mod queue;
 mod serial;
 mod xhci;
 
 use core::panic::PanicInfo;
-use interrupt::enable_maskable_interrupts;
+use interrupt::{disable_maskable_interrupts, enable_maskable_interrupts};
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
@@ -192,7 +194,28 @@ pub extern "C" fn kernel_main_new_stack(
     enable_maskable_interrupts();
 
     serial_println!("Checking for a xhc event...");
-    loop {}
+    // main event loop
+    loop {
+        disable_maskable_interrupts();
+        if event::EVENT_QUEUE.lock().is_empty() {
+            enable_maskable_interrupts();
+            continue;
+        }
+        disable_maskable_interrupts();
+        let event = event::EVENT_QUEUE.lock().pop().unwrap();
+        enable_maskable_interrupts();
+
+        match event {
+            event::Event::XHCI => {
+                //TODO: process all events that has been pushed into usb event ring.
+                get_xhc().lock().process_event();
+            }
+            event::Event::Invalid => {
+                serial_println!("invalid event!!");
+                panic!()
+            }
+        }
+    }
 
     let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
     serial_println!("{}", header);
