@@ -207,8 +207,9 @@ pub extern "C" fn kernel_main_new_stack(
 
         match event {
             event::Event::XHCI => {
-                //TODO: process all events that has been pushed into usb event ring.
-                get_xhc().lock().process_event();
+                while get_xhc().lock().has_event() {
+                    get_xhc().lock().process_event();
+                }
             }
             event::Event::Invalid => {
                 serial_println!("invalid event!!");

@@ -50,6 +50,7 @@ unsafe extern "C" {
     fn start_xhci_controller(xhc: &mut Controller) -> ErrorCode;
     fn configure_xhci_port(xhc: &mut Controller, port_num: u8) -> ErrorCode;
     fn process_xhci_event(xhc: &mut Controller) -> ErrorCode;
+    fn xhci_event_ring_is_empty(xhc: &mut Controller) -> bool;
     fn set_default_mouse_observer(observer: MouseObserverType);
     fn set_default_keyboard_observer();
 }
@@ -86,6 +87,9 @@ impl Controller {
         if !err.is_success() {
             crate::serial_println!("Error ocurred during processing xHCI event: {:?}", err);
         }
+    }
+    pub fn has_event(&mut self) -> bool {
+        unsafe { !xhci_event_ring_is_empty(self) }
     }
 }
 
