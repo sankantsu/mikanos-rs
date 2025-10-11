@@ -204,6 +204,8 @@ pub extern "x86-interrupt" fn handle_double_fault() {
 
 pub extern "x86-interrupt" fn handle_xhci_event() {
     use crate::event::Event;
-    crate::event::EVENT_QUEUE.lock().push(Event::XHCI);
+    if let Err(_event) = crate::event::EVENT_QUEUE.lock().push(Event::XHCI) {
+        crate::serial_println!("Warning: EVENT_QUEUE full, XHCI event dropped");
+    }
     notify_end_of_interrupt();
 }
