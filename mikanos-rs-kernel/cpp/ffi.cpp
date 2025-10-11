@@ -43,6 +43,10 @@ int process_xhci_event(usb::xhci::Controller* xhc) {
     return res;
 }
 
+bool xhci_event_ring_is_empty(usb::xhci::Controller* xhc) {
+	return !xhc->PrimaryEventRing()->HasFront();
+}
+
 extern "C" typedef void (*MouseObserverType)(uint8_t buttons, int8_t displacement_x,
                                              int8_t displacement_y);
 
