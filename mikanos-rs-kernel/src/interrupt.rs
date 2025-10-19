@@ -187,6 +187,36 @@ pub fn disable_maskable_interrupts() {
     }
 }
 
+pub struct InterruptGuard<T> {
+    ptr: *mut T,
+}
+
+impl<T> InterruptGuard<T> {
+    pub fn new(val: &mut T) -> Self {
+        disable_maskable_interrupts();
+        Self { ptr: val as *mut T }
+    }
+}
+
+impl<T> Drop for InterruptGuard<T> {
+    fn drop(&mut self) {
+        enable_maskable_interrupts();
+    }
+}
+
+impl<T> core::ops::Deref for InterruptGuard<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.ptr }
+    }
+}
+
+impl<T> core::ops::DerefMut for InterruptGuard<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.ptr }
+    }
+}
+
 fn notify_end_of_interrupt() {
     let eoi_reg = 0xfee000b0 as *mut u32;
     unsafe { *eoi_reg = 0 };
@@ -204,7 +234,7 @@ pub extern "x86-interrupt" fn handle_double_fault() {
 
 pub extern "x86-interrupt" fn handle_xhci_event() {
     use crate::event::Event;
-    if let Err(_event) = crate::event::EVENT_QUEUE.lock().push(Event::XHCI) {
+    if let Err(_event) = unsafe { crate::event::get_event_queue_raw().lock().push(Event::XHCI) } {
         crate::serial_println!("Warning: EVENT_QUEUE full, XHCI event dropped");
     }
     notify_end_of_interrupt();
