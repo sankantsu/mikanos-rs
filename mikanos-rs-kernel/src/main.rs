@@ -196,14 +196,10 @@ pub extern "C" fn kernel_main_new_stack(
     serial_println!("Checking for a xhc event...");
     // main event loop
     loop {
-        disable_maskable_interrupts();
-        if event::EVENT_QUEUE.lock().is_empty() {
-            enable_maskable_interrupts();
+        if event::get_event_queue().lock().is_empty() {
             continue;
         }
-        disable_maskable_interrupts();
-        let event = event::EVENT_QUEUE.lock().pop().unwrap();
-        enable_maskable_interrupts();
+        let event = event::get_event_queue().lock().pop().unwrap();
 
         match event {
             event::Event::XHCI => {
