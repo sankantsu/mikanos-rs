@@ -6,6 +6,7 @@ mod event;
 #[allow(static_mut_refs)]
 mod interrupt;
 mod mouse;
+mod paging;
 mod pci;
 mod queue;
 mod segment;
@@ -133,6 +134,7 @@ pub extern "C" fn kernel_main_new_stack(
     memory_map: &'static MemoryMapOwned,
 ) {
     segment::init_gdt();
+    paging::setup_identity_page_table();
     interrupt::init_idt();
 
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
