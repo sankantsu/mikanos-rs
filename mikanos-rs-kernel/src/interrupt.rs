@@ -1,3 +1,4 @@
+use crate::descriptor::{DescriptorTablePointer, SystemDescriptorType};
 use crate::xhci::get_xhc;
 use bitfield::bitfield;
 
@@ -6,11 +7,6 @@ pub enum InterruptVector {
     DivisionError = 0x00,
     DoubleFault = 0x08,
     XHCI = 0x40,
-}
-
-#[repr(u16)]
-pub enum DescriptorType {
-    InterruptGate = 14,
 }
 
 bitfield! {
@@ -31,7 +27,7 @@ impl IDTAttribute {
         Self(0)
     }
     #[inline]
-    pub fn new(descriptor_type: DescriptorType, descriptor_privilege_level: u16) -> Self {
+    pub fn new(descriptor_type: SystemDescriptorType, descriptor_privilege_level: u16) -> Self {
         let mut attr = Self(0);
         // Assume IST (interrupt stack table) value is 0.
         attr.set_type(descriptor_type as u16);
@@ -80,31 +76,6 @@ impl InterruptDescriptor {
     }
 }
 
-#[repr(C, packed(2))]
-struct DescriptorTablePointer {
-    limit: u16,
-    base: u64,
-}
-
-impl DescriptorTablePointer {
-    pub fn new(limit: u16, base: u64) -> Self {
-        Self { limit, base }
-    }
-    pub fn get_base(&self) -> u64 {
-        self.base
-    }
-    pub fn get_limit(&self) -> u16 {
-        self.limit
-    }
-    pub fn from_current_idt() -> Self {
-        let mut descriptor_pointer = Self::new(0, 0);
-        unsafe {
-            core::arch::asm!("sidt [{}]", in(reg) &mut descriptor_pointer);
-        }
-        descriptor_pointer
-    }
-}
-
 #[repr(align(16))]
 struct InterruptDescriptorTable {
     data: [InterruptDescriptor; 256],
@@ -144,21 +115,21 @@ pub fn init_idt() {
         IDT.set_entry(
             InterruptVector::DivisionError as usize,
             InterruptDescriptor::new(
-                IDTAttribute::new(DescriptorType::InterruptGate, 0),
+                IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
                 handle_division_error as u64,
             ),
         );
         IDT.set_entry(
             InterruptVector::DoubleFault as usize,
             InterruptDescriptor::new(
-                IDTAttribute::new(DescriptorType::InterruptGate, 0),
+                IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
                 handle_double_fault as u64,
             ),
         );
         IDT.set_entry(
             InterruptVector::XHCI as usize,
             InterruptDescriptor::new(
-                IDTAttribute::new(DescriptorType::InterruptGate, 0),
+                IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
                 handle_xhci_event as u64,
             ),
         );

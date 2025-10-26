@@ -1,12 +1,15 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+mod descriptor;
 mod event;
 #[allow(static_mut_refs)]
 mod interrupt;
 mod mouse;
+mod paging;
 mod pci;
 mod queue;
+mod segment;
 mod serial;
 mod xhci;
 
@@ -130,6 +133,8 @@ pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
 ) {
+    segment::init_gdt();
+    paging::setup_identity_page_table();
     interrupt::init_idt();
 
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
