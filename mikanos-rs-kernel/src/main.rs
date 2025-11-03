@@ -5,6 +5,7 @@ mod descriptor;
 mod event;
 #[allow(static_mut_refs)]
 mod interrupt;
+mod memory_manager;
 mod mouse;
 mod paging;
 mod pci;
@@ -136,6 +137,7 @@ pub extern "C" fn kernel_main_new_stack(
     segment::init_gdt();
     paging::setup_identity_page_table();
     interrupt::init_idt();
+    memory_manager::init(memory_map);
 
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
