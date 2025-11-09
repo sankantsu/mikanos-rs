@@ -141,7 +141,7 @@ pub fn init_idt() {
     let limit = unsafe { IDT.get_limit() };
     assert_eq!(current_idtp.get_base(), idt_base);
     assert_eq!(current_idtp.get_limit(), limit);
-    crate::serial_print!("IDT initialization done.")
+    crate::serial_println!("IDT initialization done.")
 }
 
 #[inline]
