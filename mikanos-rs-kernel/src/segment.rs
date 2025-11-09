@@ -91,7 +91,9 @@ impl GlobalDescriptorTable {
     }
     unsafe fn load(&self) {
         let descriptor_pointer = self.to_descriptor_pointer();
-        core::arch::asm!("lgdt [{}]", in(reg) &descriptor_pointer);
+        unsafe {
+            core::arch::asm!("lgdt [{}]", in(reg) &descriptor_pointer);
+        }
     }
 }
 

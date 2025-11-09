@@ -1,5 +1,4 @@
 use crate::descriptor::{DescriptorTablePointer, SystemDescriptorType};
-use crate::xhci::get_xhc;
 use bitfield::bitfield;
 
 #[repr(u8)]
@@ -37,6 +36,8 @@ impl IDTAttribute {
     }
 }
 
+pub type HandlerFunc = extern "x86-interrupt" fn();
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 struct InterruptDescriptor {
@@ -61,8 +62,9 @@ impl InterruptDescriptor {
         }
     }
     #[inline]
-    pub fn new(attr: IDTAttribute, offset: u64) -> Self {
-        let mut cs: u16 = 0;
+    pub fn new(attr: IDTAttribute, handler: HandlerFunc) -> Self {
+        let mut cs: u16;
+        let offset = handler as u64;
         // Get the current value of the code-segment register.
         unsafe { core::arch::asm!("mov ax, cs", out("ax") cs) }
         Self {
@@ -102,11 +104,11 @@ impl InterruptDescriptorTable {
     }
     pub unsafe fn load(&self) {
         let descriptor_pointer = self.to_descriptor_pointer();
-        core::arch::asm!("lidt [{}]", in(reg) &descriptor_pointer);
+        unsafe {
+            core::arch::asm!("lidt [{}]", in(reg) &descriptor_pointer);
+        }
     }
 }
-
-pub type HandlerFunc = extern "x86-interrupt" fn();
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 
@@ -116,21 +118,21 @@ pub fn init_idt() {
             InterruptVector::DivisionError as usize,
             InterruptDescriptor::new(
                 IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
-                handle_division_error as u64,
+                handle_division_error,
             ),
         );
         IDT.set_entry(
             InterruptVector::DoubleFault as usize,
             InterruptDescriptor::new(
                 IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
-                handle_double_fault as u64,
+                handle_double_fault,
             ),
         );
         IDT.set_entry(
             InterruptVector::XHCI as usize,
             InterruptDescriptor::new(
                 IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
-                handle_xhci_event as u64,
+                handle_xhci_event,
             ),
         );
         IDT.load();
@@ -141,7 +143,7 @@ pub fn init_idt() {
     let limit = unsafe { IDT.get_limit() };
     assert_eq!(current_idtp.get_base(), idt_base);
     assert_eq!(current_idtp.get_limit(), limit);
-    crate::serial_println!("IDT initialization done.")
+    crate::serial_println!("IDT initialization done.");
 }
 
 #[inline]

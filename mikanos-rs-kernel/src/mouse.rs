@@ -1,7 +1,7 @@
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 
 pub struct MouseEvent {
-    buttons: u8,
+    _buttons: u8,
     displacement_x: i8,
     displacement_y: i8,
 }
@@ -9,7 +9,7 @@ pub struct MouseEvent {
 impl MouseEvent {
     pub fn new(buttons: u8, displacement_x: i8, displacement_y: i8) -> Self {
         Self {
-            buttons,
+            _buttons: buttons,
             displacement_x,
             displacement_y,
         }
