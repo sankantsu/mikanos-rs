@@ -11,6 +11,7 @@ lazy_static = { version = "1.0", features = ["spin_no_std"] }
 spin = "0.10.0"
 uart_16550 = "0.2.0"
 x86_64 = "0.14.2"
+linked_list_allocator = "0.10.5"
 
 [build-dependencies]
 cc = "1.2.29"

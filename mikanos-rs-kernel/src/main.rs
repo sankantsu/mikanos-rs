@@ -1,10 +1,14 @@
 #![no_std]
 #![no_main]
 #![feature(abi_x86_interrupt)]
+extern crate alloc;
+
+mod allocator;
 mod descriptor;
 mod event;
 #[allow(static_mut_refs)]
 mod interrupt;
+mod memory_manager;
 mod mouse;
 mod paging;
 mod pci;
@@ -136,6 +140,8 @@ pub extern "C" fn kernel_main_new_stack(
     segment::init_gdt();
     paging::setup_identity_page_table();
     interrupt::init_idt();
+    memory_manager::init(memory_map);
+    allocator::init_heap();
 
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
@@ -147,10 +153,8 @@ pub extern "C" fn kernel_main_new_stack(
 
     for _ in 0..4 {
         for i in 0..10 {
-            let mut format_str: [u8; 256] = [0; 256];
-            (&mut format_str[0..13]).copy_from_slice("? HelloWorld\n".as_bytes());
-            format_str[0] = b'0' + i;
-            console.put_string(core::str::from_utf8(&format_str[0..13]).unwrap());
+            let s = alloc::format!("{} HelloWorld\n", i);
+            console.put_string(&s);
         }
     }
 
@@ -217,20 +221,6 @@ pub extern "C" fn kernel_main_new_stack(
                 panic!()
             }
         }
-    }
-
-    let header = "Index, Type, Type(name), PhysicalStart, NumberOfPages, Attribute";
-    serial_println!("{}", header);
-    for (i, desc) in memory_map.entries().enumerate() {
-        serial_println!(
-            "{}, {:#x}, {:?}, {:#08x}, {}, {:#x}",
-            i,
-            desc.ty.0,
-            desc.ty,
-            desc.phys_start,
-            desc.page_count,
-            desc.att.bits() & 0xfffff,
-        );
     }
     loop {}
 }
