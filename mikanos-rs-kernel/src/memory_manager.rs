@@ -1,5 +1,5 @@
 use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned, MemoryType};
-const PAGE_SIZE: usize = 4 * 1024;
+pub const PAGE_SIZE: usize = 4 * 1024;
 const MAX_PHYSICAL_MEM_SIZE: usize = 64 * 1024 * 1024 * 1024;
 const MAX_NUM_PAGE_FRAME: usize = MAX_PHYSICAL_MEM_SIZE / PAGE_SIZE;
 const BITMAP_SIZE: usize = MAX_NUM_PAGE_FRAME / 8;
@@ -11,12 +11,16 @@ impl FrameID {
     fn offset(&self, offset: usize) -> Self {
         Self(self.0 + offset)
     }
+    pub fn get_addr(&self) -> u64 {
+        (self.0 * PAGE_SIZE) as u64
+    }
 }
 
 pub struct BitmapMemoryManager {
     alloc_map: [u8; BITMAP_SIZE],
     range_begin: FrameID,
     range_end: FrameID,
+    is_initialized: bool,
 }
 
 impl BitmapMemoryManager {
@@ -25,13 +29,18 @@ impl BitmapMemoryManager {
             alloc_map: [0; BITMAP_SIZE],
             range_begin: FrameID(0),
             range_end: FrameID(MAX_NUM_PAGE_FRAME),
+            is_initialized: false,
         }
+    }
+    pub unsafe fn set_init(&mut self) {
+        self.is_initialized = true;
     }
     fn set_memory_range(&mut self, range_begin: FrameID, range_end: FrameID) {
         self.range_begin = range_begin;
         self.range_end = range_end;
     }
     pub fn allocate(&mut self, num_frames: usize) -> Option<FrameID> {
+        assert!(self.is_initialized);
         let mut start_frame_id = self.range_begin;
         loop {
             let mut i = 0;
@@ -51,11 +60,8 @@ impl BitmapMemoryManager {
             start_frame_id = start_frame_id.offset(i + 1)
         }
     }
-    // TODO:
-    // Current BitmapMemoryManager implementation requires the user to explicitly pass the allocation size to free().
-    // It differs from standard malloc()/free() interface.
-    // How can we handle this problem when we integrate this memory allocator to Rust global_allocator?
     pub fn free(&mut self, start_frame: FrameID, num_frames: usize) {
+        assert!(self.is_initialized);
         assert!(
             self.range_begin <= start_frame && start_frame.offset(num_frames) <= self.range_end
         );
@@ -123,4 +129,7 @@ pub fn init(memory_map: &'static MemoryMapOwned) {
         FrameID(1),
         FrameID((available_end / PAGE_SIZE as u64) as usize),
     );
+    unsafe {
+        MEMORY_MANAGER.lock().set_init();
+    }
 }
