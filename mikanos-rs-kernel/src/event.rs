@@ -25,5 +25,5 @@ pub fn get_event_queue() -> InterruptGuard<spin::Mutex<Queue<Event, QUEUE_SIZE>>
 
 #[allow(static_mut_refs)]
 pub unsafe fn get_event_queue_raw() -> &'static spin::Mutex<Queue<Event, QUEUE_SIZE>> {
-    &EVENT_QUEUE
+    unsafe { &EVENT_QUEUE }
 }

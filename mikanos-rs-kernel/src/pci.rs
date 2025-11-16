@@ -237,7 +237,6 @@ impl PCIAddress {
         msi_cap.message_addr = msg_addr;
         msi_cap.message_data = msg_data;
         self.write_msi_cap(cap_ptr, msi_cap);
-        let msi_cap_new = self.read_msi_cap(cap_ptr);
         Some(())
     }
     pub fn read_bar_64(&self, idx: u8) -> Option<u64> {

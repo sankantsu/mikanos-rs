@@ -5,3 +5,4 @@ members = [
   "mikanos-rs-kernel",
   "mikanos-rs-frame-buffer",
 ]
+resolver = "3"

@@ -60,6 +60,7 @@ impl BitmapMemoryManager {
             start_frame_id = start_frame_id.offset(i + 1)
         }
     }
+    #[allow(unused)]
     pub fn free(&mut self, start_frame: FrameID, num_frames: usize) {
         assert!(self.is_initialized);
         assert!(
@@ -103,7 +104,7 @@ pub static MEMORY_MANAGER: spin::Mutex<BitmapMemoryManager> =
 
 pub fn init(memory_map: &'static MemoryMapOwned) {
     let mut available_end = 0;
-    for (i, desc) in memory_map.entries().enumerate() {
+    for desc in memory_map.entries() {
         if available_end < desc.phys_start {
             let start_frame_id = FrameID((available_end / PAGE_SIZE as u64) as usize);
             let num_pages = ((desc.phys_start - available_end) / PAGE_SIZE as u64) as usize;

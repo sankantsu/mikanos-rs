@@ -18,10 +18,10 @@ mod serial;
 mod xhci;
 
 use core::panic::PanicInfo;
-use interrupt::{disable_maskable_interrupts, enable_maskable_interrupts};
+use interrupt::enable_maskable_interrupts;
 use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
 use mouse::{MouseEvent, init_mouse};
-use uefi::mem::memory_map::{MemoryMap, MemoryMapOwned};
+use uefi::mem::memory_map::MemoryMapOwned;
 use xhci::{get_xhc, init_xhc};
 
 #[panic_handler]
@@ -181,7 +181,9 @@ pub extern "C" fn kernel_main_new_stack(
     let msg_data = 0xc000 | (interrupt::InterruptVector::XHCI as u32);
     crate::serial_println!("msg_addr: {:x}", msg_addr);
     crate::serial_println!("msg_data: {:x}", msg_data);
-    let msi_cap_ptr = xhci_controller_addr.configure_msi(msg_addr, msg_data);
+    xhci_controller_addr
+        .configure_msi(msg_addr, msg_data)
+        .unwrap();
 
     // Initialize USB driver
     let mmio_base = xhci_controller_addr.read_bar_64(0).unwrap();
@@ -222,5 +224,4 @@ pub extern "C" fn kernel_main_new_stack(
             }
         }
     }
-    loop {}
 }
