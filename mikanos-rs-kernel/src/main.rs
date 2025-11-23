@@ -202,9 +202,12 @@ pub extern "C" fn kernel_main_new_stack(
     enable_maskable_interrupts();
 
     serial_println!("Checking for a xhc event...");
+
+    console.put_string("Started!");
     // main event loop
-    let mut interrupted_cnt = 0;
     loop {
+        let tick = timer::get_current_tick();
+        crate::serial_println!("Current tick: {}", tick);
         if event::get_event_queue().lock().is_empty() {
             continue;
         }
@@ -215,11 +218,6 @@ pub extern "C" fn kernel_main_new_stack(
                 while get_xhc().lock().has_event() {
                     get_xhc().lock().process_event();
                 }
-            }
-            event::Event::Timer => {
-                interrupted_cnt += 1;
-                let s = alloc::format!("Interrupted!! interrupted_cnt: {}\n", interrupted_cnt);
-                console.put_string(&s);
             }
             event::Event::Invalid => {
                 serial_println!("invalid event!!");
