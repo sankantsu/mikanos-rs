@@ -6,7 +6,6 @@ use crate::interrupt::InterruptGuard;
 pub enum Event {
     Invalid = 0,
     XHCI,
-    Timer,
 }
 
 impl Default for Event {

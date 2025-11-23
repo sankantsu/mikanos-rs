@@ -222,12 +222,8 @@ pub extern "x86-interrupt" fn handle_xhci_event() {
 }
 
 extern "x86-interrupt" fn handle_timer_event() {
-    use crate::event::Event;
     unsafe {
-        crate::event::get_event_queue_raw()
-            .lock()
-            .push(Event::Timer)
-            .unwrap()
+        crate::timer::TIMER_MANAGER.tick();
     };
     notify_end_of_interrupt();
 }
