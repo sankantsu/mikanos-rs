@@ -15,6 +15,7 @@ mod pci;
 mod queue;
 mod segment;
 mod serial;
+mod timer;
 mod xhci;
 
 use core::panic::PanicInfo;
@@ -137,11 +138,14 @@ pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
 ) {
-    segment::init_gdt();
-    paging::setup_identity_page_table();
-    interrupt::init_idt();
-    memory_manager::init(memory_map);
-    allocator::init_heap();
+    unsafe {
+        segment::init_gdt();
+        paging::setup_identity_page_table();
+        interrupt::init_idt();
+        memory_manager::init(memory_map);
+        allocator::init_heap();
+        timer::init_local_apic_timer();
+    }
 
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
@@ -151,14 +155,7 @@ pub extern "C" fn kernel_main_new_stack(
         PixelColor::new(255, 255, 255),
     );
 
-    for _ in 0..4 {
-        for i in 0..10 {
-            let s = alloc::format!("{} HelloWorld\n", i);
-            console.put_string(&s);
-        }
-    }
-
-    init_mouse(frame_buffer, (200, 100));
+    init_mouse(frame_buffer, (200, 300));
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
         mouse::get_mouse().lock().move_mouse(&dummy_event);
@@ -205,8 +202,12 @@ pub extern "C" fn kernel_main_new_stack(
     enable_maskable_interrupts();
 
     serial_println!("Checking for a xhc event...");
+
+    console.put_string("Started!");
     // main event loop
     loop {
+        let tick = timer::get_current_tick();
+        crate::serial_println!("Current tick: {}", tick);
         if event::get_event_queue().lock().is_empty() {
             continue;
         }
