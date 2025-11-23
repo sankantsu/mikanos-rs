@@ -7,7 +7,10 @@ const DIVIDE_CONFIG: *mut u32 = 0xfee003e0u64 as *mut u32;
 pub unsafe fn init_local_apic_timer() {
     unsafe {
         core::ptr::write_volatile(DIVIDE_CONFIG, 0b1011); // divide 1:1
-        core::ptr::write_volatile(LVT_TIMER, (1 << 16) | 32); // masked, one-shot, vector=32
+        core::ptr::write_volatile(
+            LVT_TIMER,
+            (0b010 << 16) | crate::interrupt::InterruptVector::Timer as u32, // not-masked, periodic
+        );
     }
 }
 

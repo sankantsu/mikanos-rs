@@ -155,16 +155,6 @@ pub extern "C" fn kernel_main_new_stack(
         PixelColor::new(255, 255, 255),
     );
 
-    for _ in 0..10 {
-        timer::start_local_apic_timer();
-        for _ in 0..300000 {} // delay
-        let elapsed = timer::get_local_apic_timer_elapsed();
-        timer::stop_local_apic_timer();
-
-        let s = alloc::format!("Elapsed: {}\n", elapsed);
-        console.put_string(&s);
-    }
-
     init_mouse(frame_buffer, (200, 300));
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
@@ -213,6 +203,7 @@ pub extern "C" fn kernel_main_new_stack(
 
     serial_println!("Checking for a xhc event...");
     // main event loop
+    let mut interrupted_cnt = 0;
     loop {
         if event::get_event_queue().lock().is_empty() {
             continue;
@@ -224,6 +215,11 @@ pub extern "C" fn kernel_main_new_stack(
                 while get_xhc().lock().has_event() {
                     get_xhc().lock().process_event();
                 }
+            }
+            event::Event::Timer => {
+                interrupted_cnt += 1;
+                let s = alloc::format!("Interrupted!! interrupted_cnt: {}\n", interrupted_cnt);
+                console.put_string(&s);
             }
             event::Event::Invalid => {
                 serial_println!("invalid event!!");

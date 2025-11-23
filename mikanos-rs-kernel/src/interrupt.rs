@@ -6,6 +6,7 @@ pub enum InterruptVector {
     DivisionError = 0x00,
     DoubleFault = 0x08,
     XHCI = 0x40,
+    Timer = 0x41,
 }
 
 bitfield! {
@@ -135,6 +136,13 @@ pub fn init_idt() {
                 handle_xhci_event,
             ),
         );
+        IDT.set_entry(
+            InterruptVector::Timer as usize,
+            InterruptDescriptor::new(
+                IDTAttribute::new(SystemDescriptorType::InterruptGate, 0),
+                handle_timer_event,
+            ),
+        );
         IDT.load();
     }
     // Check IDT configuration
@@ -210,5 +218,16 @@ pub extern "x86-interrupt" fn handle_xhci_event() {
     if let Err(_event) = unsafe { crate::event::get_event_queue_raw().lock().push(Event::XHCI) } {
         crate::serial_println!("Warning: EVENT_QUEUE full, XHCI event dropped");
     }
+    notify_end_of_interrupt();
+}
+
+extern "x86-interrupt" fn handle_timer_event() {
+    use crate::event::Event;
+    unsafe {
+        crate::event::get_event_queue_raw()
+            .lock()
+            .push(Event::Timer)
+            .unwrap()
+    };
     notify_end_of_interrupt();
 }
