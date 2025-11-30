@@ -15,6 +15,7 @@ mod pci;
 mod queue;
 mod segment;
 mod serial;
+mod timer;
 mod xhci;
 
 use core::panic::PanicInfo;
@@ -137,11 +138,14 @@ pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
 ) {
-    segment::init_gdt();
-    paging::setup_identity_page_table();
-    interrupt::init_idt();
-    memory_manager::init(memory_map);
-    allocator::init_heap();
+    unsafe {
+        segment::init_gdt();
+        paging::setup_identity_page_table();
+        interrupt::init_idt();
+        memory_manager::init(memory_map);
+        allocator::init_heap();
+        timer::init_local_apic_timer();
+    }
 
     frame_buffer.fill(&PixelColor::new(255, 255, 255));
 
@@ -151,14 +155,7 @@ pub extern "C" fn kernel_main_new_stack(
         PixelColor::new(255, 255, 255),
     );
 
-    for _ in 0..4 {
-        for i in 0..10 {
-            let s = alloc::format!("{} HelloWorld\n", i);
-            console.put_string(&s);
-        }
-    }
-
-    init_mouse(frame_buffer, (200, 100));
+    init_mouse(frame_buffer, (200, 300));
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
         mouse::get_mouse().lock().move_mouse(&dummy_event);
@@ -201,10 +198,16 @@ pub extern "C" fn kernel_main_new_stack(
         get_xhc().lock().configure_port(i);
     }
 
-    // Start responding hardware interrupts.
+    // Timer usage example
+    timer::add_timer(timer::Timer::new(200, 2));
+    timer::add_timer(timer::Timer::new(600, -1));
+
+    // Start responding hardware and timer interrupts.
     enable_maskable_interrupts();
 
     serial_println!("Checking for a xhc event...");
+
+    console.put_string("Started!\n");
     // main event loop
     loop {
         if event::get_event_queue().lock().is_empty() {
@@ -216,6 +219,21 @@ pub extern "C" fn kernel_main_new_stack(
             event::Event::XHCI => {
                 while get_xhc().lock().has_event() {
                     get_xhc().lock().process_event();
+                }
+            }
+            event::Event::Timeout(timeout, value) => {
+                let current_tick = timer::get_current_tick();
+                let s = alloc::format!(
+                    "Timeout: timeout={}, value={} (current_tick={})\n",
+                    timeout,
+                    value,
+                    current_tick
+                );
+                console.put_string(&s);
+                if value > 0 {
+                    let next_timeout = timeout + 100;
+                    let next_value = value + 1;
+                    timer::add_timer(timer::Timer::new(next_timeout, next_value));
                 }
             }
             event::Event::Invalid => {
