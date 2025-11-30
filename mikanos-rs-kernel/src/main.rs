@@ -198,16 +198,18 @@ pub extern "C" fn kernel_main_new_stack(
         get_xhc().lock().configure_port(i);
     }
 
-    // Start responding hardware interrupts.
+    // Timer usage example
+    timer::add_timer(timer::Timer::new(200, 2));
+    timer::add_timer(timer::Timer::new(600, -1));
+
+    // Start responding hardware and timer interrupts.
     enable_maskable_interrupts();
 
     serial_println!("Checking for a xhc event...");
 
-    console.put_string("Started!");
+    console.put_string("Started!\n");
     // main event loop
     loop {
-        let tick = timer::get_current_tick();
-        crate::serial_println!("Current tick: {}", tick);
         if event::get_event_queue().lock().is_empty() {
             continue;
         }
@@ -217,6 +219,21 @@ pub extern "C" fn kernel_main_new_stack(
             event::Event::XHCI => {
                 while get_xhc().lock().has_event() {
                     get_xhc().lock().process_event();
+                }
+            }
+            event::Event::Timeout(timeout, value) => {
+                let current_tick = timer::get_current_tick();
+                let s = alloc::format!(
+                    "Timeout: timeout={}, value={} (current_tick={})\n",
+                    timeout,
+                    value,
+                    current_tick
+                );
+                console.put_string(&s);
+                if value > 0 {
+                    let next_timeout = timeout + 100;
+                    let next_value = value + 1;
+                    timer::add_timer(timer::Timer::new(next_timeout, next_value));
                 }
             }
             event::Event::Invalid => {

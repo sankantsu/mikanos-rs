@@ -21,19 +21,66 @@ fn start_local_apic_timer() {
     }
 }
 
+pub struct Timer {
+    timeout: u64,
+    value: i64,
+}
+
+impl Timer {
+    pub fn new(timeout: u64, value: i64) -> Self {
+        Self { timeout, value }
+    }
+}
+
+// Comparison based on timeout priority
+impl PartialEq for Timer {
+    fn eq(&self, other: &Self) -> bool {
+        self.timeout == other.timeout
+    }
+}
+
+impl Eq for Timer {}
+
+impl PartialOrd for Timer {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.timeout.cmp(&other.timeout).reverse())
+    }
+}
+
+impl Ord for Timer {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.timeout.cmp(&other.timeout).reverse()
+    }
+}
+
 pub struct TimerManager {
     tick: core::sync::atomic::AtomicU64,
+    timers: alloc::collections::BinaryHeap<Timer>,
 }
 
 impl TimerManager {
     pub const fn new() -> Self {
         TimerManager {
             tick: core::sync::atomic::AtomicU64::new(0),
+            timers: alloc::collections::BinaryHeap::new(),
         }
+    }
+    fn add_timer(&mut self, timer: Timer) {
+        self.timers.push(timer)
     }
     pub fn tick(&mut self) {
         self.tick
             .fetch_add(1, core::sync::atomic::Ordering::Relaxed);
+        while !self.timers.is_empty() {
+            let t = self.timers.peek().unwrap();
+            if t.timeout > self.tick.load(core::sync::atomic::Ordering::Relaxed) {
+                // No need to handle timeout
+                break;
+            }
+            let event = crate::event::Event::Timeout(t.timeout, t.value);
+            crate::event::get_event_queue().lock().push(event).unwrap();
+            self.timers.pop().unwrap();
+        }
     }
     pub fn get_tick(&self) -> u64 {
         self.tick.load(core::sync::atomic::Ordering::Relaxed)
@@ -45,4 +92,9 @@ pub static mut TIMER_MANAGER: TimerManager = TimerManager::new();
 #[allow(static_mut_refs)]
 pub fn get_current_tick() -> u64 {
     unsafe { TIMER_MANAGER.get_tick() }
+}
+
+#[allow(static_mut_refs)]
+pub fn add_timer(timer: Timer) {
+    unsafe { TIMER_MANAGER.add_timer(timer) }
 }

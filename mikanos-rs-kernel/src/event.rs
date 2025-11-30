@@ -4,8 +4,9 @@ use crate::interrupt::InterruptGuard;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Event {
-    Invalid = 0,
+    Invalid,
     XHCI,
+    Timeout(u64, i64), // timeout, value
 }
 
 impl Default for Event {
