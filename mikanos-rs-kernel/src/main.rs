@@ -23,7 +23,7 @@ mod xhci;
 use console::Console;
 use core::panic::PanicInfo;
 use interrupt::enable_maskable_interrupts;
-use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
+use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::MemoryMapOwned;
 use xhci::{get_xhc, init_xhc};

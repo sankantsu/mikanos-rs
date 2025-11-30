@@ -1,4 +1,4 @@
-use mikanos_rs_frame_buffer::{FrameBuffer, PixelColor};
+use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
 
 pub struct Console {
     frame_buffer: &'static FrameBuffer,
