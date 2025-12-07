@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
+#![feature(abi_x86_interrupt, naked_functions)]
 extern crate alloc;
 
 mod allocator;
@@ -15,6 +15,7 @@ mod pci;
 mod queue;
 mod segment;
 mod serial;
+mod task;
 mod timer;
 mod xhci;
 
@@ -133,7 +134,25 @@ pub unsafe extern "C" fn kernel_main(
     }
 }
 
+// Create task contexts
+static mut TASK_A_CTX: task::TaskContext = task::TaskContext::new();
+static mut TASK_B_CTX: task::TaskContext = task::TaskContext::new();
+
+#[allow(static_mut_refs)]
+fn task_b() {
+    let mut cnt = 0;
+    loop {
+        cnt += 1;
+        let msg = alloc::format!("(Task B) count={}\n", cnt);
+        serial_print!("{}", msg);
+        unsafe {
+            task::switch_context(&mut TASK_A_CTX, &mut TASK_B_CTX);
+        }
+    }
+}
+
 #[unsafe(no_mangle)]
+#[allow(static_mut_refs)]
 pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
@@ -198,6 +217,22 @@ pub extern "C" fn kernel_main_new_stack(
         get_xhc().lock().configure_port(i);
     }
 
+    // Initialize Task B context
+    let task_b_stack: alloc::vec::Vec<u64> = alloc::vec![0; 1024];
+    unsafe {
+        TASK_B_CTX.rip = task_b as u64;
+        let mut cr3: u64;
+        core::arch::asm!(
+            "mov rax, cr3",
+            out("rax") cr3,
+        );
+        TASK_B_CTX.cr3 = cr3;
+        TASK_B_CTX.rflags = 0x202; // IF=1
+        TASK_B_CTX.cs = 0x08;
+        TASK_B_CTX.ss = 0;
+        TASK_B_CTX.rsp = task_b_stack.as_ptr() as u64 + 8 * 1024;
+    }
+
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
     timer::add_timer(timer::Timer::new(600, -1));
@@ -208,8 +243,17 @@ pub extern "C" fn kernel_main_new_stack(
     serial_println!("Checking for a xhc event...");
 
     console.put_string("Started!\n");
+
     // main event loop
+    let mut cnt = 0;
     loop {
+        cnt += 1;
+        let msg = alloc::format!("(Task A) count={}\n", cnt);
+        serial_print!("{}", msg);
+        unsafe {
+            task::switch_context(&mut TASK_B_CTX, &mut TASK_A_CTX);
+        }
+
         if event::get_event_queue().lock().is_empty() {
             continue;
         }
