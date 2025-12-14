@@ -3,38 +3,38 @@ pub struct TaskContext {
     // とりあえずみかん本と全く同じレイアウトで実装
     // わからんところはコメントに残しておく
     // offset 0x00
-    cr3: u64,
-    rip: u64,
-    rflags: u64,
+    pub cr3: u64,
+    pub rip: u64,
+    pub rflags: u64,
     _reserved: u64, // 必要?
     // offset 0x20
-    cs: u64, // Segment register って 16 bit じゃなかったっけ
+    pub cs: u64, // Segment register って 16 bit じゃなかったっけ
     // ds, es は保存しないの?
-    ss: u64,
-    fs: u64,
-    gs: u64,
+    pub ss: u64,
+    pub fs: u64,
+    pub gs: u64,
     // offset 0x40
-    rax: u64,
-    rbx: u64,
-    rcx: u64,
-    rdx: u64,
+    pub rax: u64,
+    pub rbx: u64,
+    pub rcx: u64,
+    pub rdx: u64,
     // offset 0x60
-    rdi: u64,
-    rsi: u64,
-    rsp: u64,
-    rbp: u64,
+    pub rdi: u64,
+    pub rsi: u64,
+    pub rsp: u64,
+    pub rbp: u64,
     // offset 0x80
-    r8: u64,
-    r9: u64,
-    r10: u64,
-    r11: u64,
+    pub r8: u64,
+    pub r9: u64,
+    pub r10: u64,
+    pub r11: u64,
     // offset 0xa0
-    r12: u64,
-    r13: u64,
-    r14: u64,
-    r15: u64,
+    pub r12: u64,
+    pub r13: u64,
+    pub r14: u64,
+    pub r15: u64,
     // offset 0xc0
-    fxsave: [u8; 512],
+    pub fxsave: [u8; 512],
 }
 
 impl TaskContext {
@@ -112,16 +112,47 @@ pub extern "C" fn switch_context(next_ctx: &mut TaskContext, current_ctx: &mut T
             "mov ax, cs",
             "mov [rsi + 0x20], rax",
             "mov ax, ss",
-            "mov [rsi + 0x20], rax",
+            "mov [rsi + 0x28], rax",
             "mov ax, fs",
-            "mov [rsi + 0x20], rax",
+            "mov [rsi + 0x30], rax",
             "mov ax, gs",
-            "mov [rsi + 0x20], rax",
+            "mov [rsi + 0x38], rax",
             // fxsave
             "fxsave [rsi + 0xc0]",
             // ---------------------------------------
-            // TODO: Restore context
-            "ret",
+            // Restore context
+            // Make stack state for iret
+            "push QWORD PTR [rdi + 0x28]", // SS
+            "push QWORD PTR [rdi + 0x70]", // RSP
+            "push QWORD PTR [rdi + 0x10]", // RFLAGS
+            "push QWORD PTR [rdi + 0x20]", // CS
+            "push QWORD PTR [rdi + 0x08]", // RIP
+            // fxrestore
+            "fxrstor [rdi + 0xc0]",
+            // Special registers/Segment registers
+            "mov rax, [rdi + 0x00]",
+            "mov cr3, rax",
+            "mov rax, [rdi + 0x30]",
+            "mov fs, ax",
+            "mov rax, [rdi + 0x38]",
+            "mov gs, ax",
+            // General purpose registers
+            "mov rax, [rdi + 0x40]",
+            "mov rbx, [rdi + 0x48]",
+            "mov rcx, [rdi + 0x50]",
+            "mov rdx, [rdi + 0x58]",
+            "mov rsi, [rdi + 0x68]",
+            "mov rbp, [rdi + 0x78]",
+            "mov r8, [rdi + 0x80]",
+            "mov r9, [rdi + 0x88]",
+            "mov r10, [rdi + 0x90]",
+            "mov r11, [rdi + 0x98]",
+            "mov r12, [rdi + 0xa0]",
+            "mov r13, [rdi + 0xa8]",
+            "mov r14, [rdi + 0xb0]",
+            "mov r15, [rdi + 0xb8]",
+            "mov rdi, [rdi + 0x60]",
+            "iretq",
         );
     }
 }

@@ -217,6 +217,22 @@ pub extern "C" fn kernel_main_new_stack(
         get_xhc().lock().configure_port(i);
     }
 
+    // Initialize Task B context
+    let task_b_stack: alloc::vec::Vec<u64> = alloc::vec![0; 1024];
+    unsafe {
+        TASK_B_CTX.rip = task_b as u64;
+        let mut cr3: u64;
+        core::arch::asm!(
+            "mov rax, cr3",
+            out("rax") cr3,
+        );
+        TASK_B_CTX.cr3 = cr3;
+        TASK_B_CTX.rflags = 0x202; // IF=1
+        TASK_B_CTX.cs = 0x08;
+        TASK_B_CTX.ss = 0;
+        TASK_B_CTX.rsp = task_b_stack.as_ptr() as u64 + 8 * 1024;
+    }
+
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
     timer::add_timer(timer::Timer::new(600, -1));
