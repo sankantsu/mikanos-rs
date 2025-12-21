@@ -171,9 +171,6 @@ fn task_b() {
         cnt += 1;
         let msg = alloc::format!("(Task B) count={}\n", cnt);
         crate::serial_print!("{}", msg);
-        unsafe {
-            switch_task();
-        }
     }
 }
 

@@ -216,18 +216,9 @@ pub extern "C" fn kernel_main_new_stack(
     // main event loop
     let mut cnt = 0;
     loop {
-        let task_timeout = unsafe { timer::TIMER_MANAGER.check_task_timeout() };
-        if task_timeout {
-            unsafe { timer::TIMER_MANAGER.reset_task_timeout() }
-            serial_println!("Task switch happens!");
-        }
-
         cnt += 1;
         let msg = alloc::format!("(Task A) count={}\n", cnt);
         serial_print!("{}", msg);
-        unsafe {
-            task::switch_task();
-        }
 
         if event::get_event_queue().lock().is_empty() {
             continue;
