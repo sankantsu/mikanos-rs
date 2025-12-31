@@ -2,6 +2,7 @@ pub const TASK_TIMEOUT_INTERVAL: u64 = 10;
 pub const TASK_TIMEOUT_MESSAGE: i64 = i64::MAX;
 
 #[repr(C, align(16))]
+#[derive(Clone, Copy, Debug)]
 pub struct TaskContext {
     // The same layout as the original MikanOS
     // offset 0x00
@@ -71,6 +72,84 @@ impl TaskContext {
         }
     }
 }
+
+pub type TaskFunc = fn();
+
+#[derive(Clone, Copy)]
+pub enum TaskDescriptor {
+    Main,
+    Func(TaskFunc),
+}
+
+#[derive(Debug)]
+pub struct Task {
+    _stack: alloc::vec::Vec<u64>,
+    context: TaskContext,
+}
+
+impl Task {
+    pub fn new(desc: TaskDescriptor) -> Self {
+        let task_stack: alloc::vec::Vec<u64> = alloc::vec![0; 1024];
+        let mut task_ctx = TaskContext::new();
+
+        match desc {
+            TaskDescriptor::Main => {}
+            TaskDescriptor::Func(task) => {
+                unsafe {
+                    task_ctx.rip = task as u64;
+                    let mut cr3: u64;
+                    core::arch::asm!(
+                        "mov rax, cr3",
+                        out("rax") cr3,
+                    );
+                    task_ctx.cr3 = cr3;
+                    task_ctx.rflags = 0x202; // IF=1
+                    task_ctx.cs = 0x08;
+                    task_ctx.ss = 0;
+                    task_ctx.rsp = task_stack.as_ptr() as u64 + 8 * 1024;
+                }
+            }
+        }
+        Self {
+            _stack: task_stack,
+            context: task_ctx,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct TaskPool {
+    tasks: alloc::vec::Vec<Task>,
+    current_task_idx: usize,
+}
+
+impl TaskPool {
+    pub fn new() -> Self {
+        let mut tasks = alloc::vec::Vec::new();
+        tasks.push(Task::new(TaskDescriptor::Main));
+        Self {
+            tasks,
+            current_task_idx: 0,
+        }
+    }
+    pub fn add_task(&mut self, task: Task) {
+        self.tasks.push(task);
+    }
+    pub fn switch_task(&mut self) {
+        let current_task_idx = self.current_task_idx;
+        let next_task_idx = (self.current_task_idx + 1) % self.tasks.len();
+        self.current_task_idx = next_task_idx;
+        if next_task_idx == 0 {
+            let (left, right) = self.tasks.split_at_mut(current_task_idx);
+            switch_context(&mut left[0].context, &mut right[0].context);
+        } else {
+            let (left, right) = self.tasks.split_at_mut(next_task_idx);
+            switch_context(&mut right[0].context, &mut left[current_task_idx].context);
+        }
+    }
+}
+
+static mut TASK_POOL: core::cell::OnceCell<TaskPool> = core::cell::OnceCell::new();
 
 #[naked]
 pub extern "C" fn switch_context(next_ctx: &mut TaskContext, current_ctx: &mut TaskContext) {
@@ -160,51 +239,26 @@ pub extern "C" fn switch_context(next_ctx: &mut TaskContext, current_ctx: &mut T
     }
 }
 
-// Create task contexts
-static mut TASK_A_CTX: TaskContext = TaskContext::new();
-static mut TASK_B_CTX: TaskContext = TaskContext::new();
-
 #[allow(static_mut_refs)]
-fn task_b() {
+pub fn task_b() {
     let mut cnt = 0;
     loop {
         cnt += 1;
-        let msg = alloc::format!("(Task B) count={}\n", cnt);
-        crate::serial_print!("{}", msg);
-    }
-}
-
-pub fn initialize_task_b_ctx() {
-    let task_b_stack: alloc::vec::Vec<u64> = alloc::vec![0; 1024];
-    unsafe {
-        TASK_B_CTX.rip = task_b as u64;
-        let mut cr3: u64;
-        core::arch::asm!(
-            "mov rax, cr3",
-            out("rax") cr3,
-        );
-        TASK_B_CTX.cr3 = cr3;
-        TASK_B_CTX.rflags = 0x202; // IF=1
-        TASK_B_CTX.cs = 0x08;
-        TASK_B_CTX.ss = 0;
-        TASK_B_CTX.rsp = task_b_stack.as_ptr() as u64 + 8 * 1024;
+        if cnt % 1000000 == 0 {
+            let msg = alloc::format!("(Task B) count={}\n", cnt);
+            crate::serial_print!("{}", msg);
+        }
     }
 }
 
 #[allow(static_mut_refs)]
-static mut CURRENT_TASK: &mut TaskContext = unsafe { &mut TASK_A_CTX };
-
-#[allow(static_mut_refs)]
-pub unsafe fn switch_task() {
-    unsafe {
-        if core::ptr::eq(CURRENT_TASK, &mut TASK_A_CTX) {
-            // task A -> task B
-            CURRENT_TASK = &mut TASK_B_CTX;
-            switch_context(&mut TASK_B_CTX, &mut TASK_A_CTX);
-        } else {
-            // task B -> task A
-            CURRENT_TASK = &mut TASK_A_CTX;
-            switch_context(&mut TASK_A_CTX, &mut TASK_B_CTX);
+pub fn task_c() {
+    let mut cnt = 0;
+    loop {
+        cnt += 1;
+        if cnt % 1000000 == 0 {
+            let msg = alloc::format!("(Task C) count={}\n", cnt);
+            crate::serial_print!("{}", msg);
         }
     }
 }
@@ -216,7 +270,25 @@ pub fn add_task_timeout_timer(tick: u64) {
     ));
 }
 
+#[allow(static_mut_refs)]
 pub fn initialize_task_switch() {
+    unsafe {
+        TASK_POOL.set(TaskPool::new()).unwrap();
+    }
     let initial_tick = 0;
     add_task_timeout_timer(initial_tick)
+}
+
+#[allow(static_mut_refs)]
+pub fn add_task(task: Task) {
+    unsafe {
+        TASK_POOL.get_mut().unwrap().add_task(task);
+    }
+}
+
+#[allow(static_mut_refs)]
+pub unsafe fn switch_task() {
+    unsafe {
+        TASK_POOL.get_mut().unwrap().switch_task();
+    }
 }

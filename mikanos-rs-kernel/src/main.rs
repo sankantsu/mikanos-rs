@@ -200,11 +200,11 @@ pub extern "C" fn kernel_main_new_stack(
         get_xhc().lock().configure_port(i);
     }
 
-    task::initialize_task_b_ctx();
-
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
     task::initialize_task_switch();
+    task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
+    task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
 
     // Start responding hardware and timer interrupts.
     enable_maskable_interrupts();
@@ -217,8 +217,10 @@ pub extern "C" fn kernel_main_new_stack(
     let mut cnt = 0;
     loop {
         cnt += 1;
-        let msg = alloc::format!("(Task A) count={}\n", cnt);
-        serial_print!("{}", msg);
+        if cnt % 10000 == 0 {
+            let msg = alloc::format!("(Task A) count={}\n", cnt);
+            serial_print!("{}", msg);
+        }
 
         if event::get_event_queue().lock().is_empty() {
             continue;
