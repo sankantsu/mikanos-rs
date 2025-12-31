@@ -1,7 +1,7 @@
 use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
 use uefi::proto::console::gop::PixelFormat;
 
-struct ShadowBuffer {
+pub struct ShadowBuffer {
     buffer: alloc::vec::Vec<u8>,
     pixels_per_scanline: usize,
     horizontal_resolution: usize,
@@ -54,7 +54,6 @@ impl FrameBufferWriter for ShadowBuffer {
 }
 
 pub struct Console {
-    frame_buffer: &'static FrameBuffer,
     shadow_buffer: ShadowBuffer,
     fg_color: PixelColor,
     bg_color: PixelColor,
@@ -79,7 +78,6 @@ impl Console {
         );
         shadow_buffer.fill(&bg_color);
         Self {
-            frame_buffer,
             shadow_buffer,
             fg_color,
             bg_color,
@@ -127,12 +125,17 @@ impl Console {
         }
         self.buffer[Self::N_ROWS - 1].fill(0);
     }
-    pub fn draw(&mut self) {
-        let src = self.shadow_buffer.get_buffer_mut();
-        let dst = self.frame_buffer.get_buffer_mut();
-        let count = self.frame_buffer.size();
-        unsafe {
-            core::ptr::copy(src, dst, count);
-        }
+    pub fn get_buffer(&mut self) -> &mut ShadowBuffer {
+        &mut self.shadow_buffer
+    }
+}
+
+pub fn copy_buffer<T: FrameBufferWriter, U: FrameBufferWriter>(src: &T, dest: &U) {
+    assert_eq!(src.size(), dest.size());
+    let src = src.get_buffer_mut();
+    let dst = dest.get_buffer_mut();
+    let count = dest.size();
+    unsafe {
+        core::ptr::copy(src, dst, count);
     }
 }

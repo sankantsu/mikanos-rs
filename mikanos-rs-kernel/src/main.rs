@@ -20,7 +20,7 @@ mod task;
 mod timer;
 mod xhci;
 
-use console::Console;
+use console::{Console, ShadowBuffer, copy_buffer};
 use core::panic::PanicInfo;
 use interrupt::enable_maskable_interrupts;
 use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
@@ -90,7 +90,9 @@ pub extern "C" fn kernel_main_new_stack(
         PixelColor::new(255, 255, 255),
     );
 
-    init_mouse(frame_buffer, (200, 300));
+    let screen_width = frame_buffer.get_horizontal_resolution();
+    let screen_height = frame_buffer.get_vertical_resolution();
+    init_mouse((200, 300), (screen_width, screen_height));
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
         mouse::get_mouse().lock().move_mouse(&dummy_event);
@@ -137,6 +139,13 @@ pub extern "C" fn kernel_main_new_stack(
     task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
     task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
 
+    let mut shadow_buffer = ShadowBuffer::new(
+        frame_buffer.get_pixels_per_scan_line(),
+        frame_buffer.get_horizontal_resolution(),
+        frame_buffer.get_vertical_resolution(),
+        frame_buffer.get_pixel_format(),
+    );
+
     // Start responding hardware and timer interrupts.
     enable_maskable_interrupts();
 
@@ -153,7 +162,10 @@ pub extern "C" fn kernel_main_new_stack(
             serial_print!("{}", msg);
         }
 
-        console.draw();
+        // Draw screen
+        copy_buffer(console.get_buffer(), &shadow_buffer);
+        mouse::get_mouse().lock().draw_mouse(&mut shadow_buffer);
+        copy_buffer(&shadow_buffer, frame_buffer);
 
         if event::get_event_queue().lock().is_empty() {
             continue;

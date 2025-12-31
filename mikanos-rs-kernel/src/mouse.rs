@@ -1,4 +1,4 @@
-use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
+use mikanos_rs_frame_buffer::{FrameBufferWriter, PixelColor};
 
 pub struct MouseEvent {
     _buttons: u8,
@@ -17,8 +17,8 @@ impl MouseEvent {
 }
 
 pub struct Mouse {
-    frame_buffer: &'static FrameBuffer,
-    current_pos: (usize, usize),
+    current_pos: (usize, usize), // x, y
+    screen_size: (usize, usize), // horizontal, vertical
 }
 
 static MOUSE: spin::Once<spin::Mutex<Mouse>> = spin::Once::new();
@@ -26,8 +26,8 @@ static MOUSE: spin::Once<spin::Mutex<Mouse>> = spin::Once::new();
 // See https://github.com/sankantsu/mikanos-rs/issues/17
 unsafe impl Send for Mouse {}
 
-pub fn init_mouse(frame_buffer: &'static FrameBuffer, initial_pos: (usize, usize)) {
-    MOUSE.call_once(|| spin::Mutex::new(Mouse::new(frame_buffer, initial_pos)));
+pub fn init_mouse(initial_pos: (usize, usize), screen_size: (usize, usize)) {
+    MOUSE.call_once(|| spin::Mutex::new(Mouse::new(initial_pos, screen_size)));
     ()
 }
 
@@ -65,65 +65,45 @@ const MOUSE_CURSOR: [&'static str; MOUSE_CURSOR_HEIGHT] = [
 ];
 
 impl Mouse {
-    pub fn new(frame_buffer: &'static FrameBuffer, initial_pos: (usize, usize)) -> Self {
+    pub fn new(initial_pos: (usize, usize), screen_size: (usize, usize)) -> Self {
         Self {
-            frame_buffer,
             current_pos: initial_pos,
+            screen_size,
         }
     }
 
     pub fn move_mouse(&mut self, mouse_event: &MouseEvent) {
-        self.erase_mouse();
         let (current_x, current_y) = self.current_pos;
-        let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line() as i32;
-        let vertical_resolution = self.frame_buffer.get_vertical_resolution() as i32;
+        let screen_width = self.screen_size.0 as i32;
+        let screen_height = self.screen_size.1 as i32;
         let new_x = i32::min(
-            pixels_per_scan_line,
+            screen_width,
             i32::max(0, (current_x as i32) + (mouse_event.displacement_x as i32)),
         ) as usize;
         let new_y = i32::min(
-            vertical_resolution,
+            screen_height,
             i32::max(0, (current_y as i32) + (mouse_event.displacement_y as i32)),
         ) as usize;
         self.current_pos = (new_x, new_y);
-        self.draw_mouse();
     }
 
-    pub fn draw_mouse(&self) {
+    pub fn draw_mouse<T: FrameBufferWriter>(&self, buffer: &mut T) {
         let (x, y) = self.current_pos;
         for dy in 0..MOUSE_CURSOR_HEIGHT {
             for dx in 0..MOUSE_CURSOR_WIDTH {
                 let c = MOUSE_CURSOR[dy].as_bytes()[dx];
-                let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
-                let vertical_resolution = self.frame_buffer.get_vertical_resolution();
+                let pixels_per_scan_line = buffer.get_pixels_per_scan_line();
+                let vertical_resolution = buffer.get_vertical_resolution();
                 if x + dx >= pixels_per_scan_line || y + dy >= vertical_resolution {
                     continue;
                 }
                 if c == b'@' {
                     let black = &PixelColor::new(0, 0, 0);
-                    self.frame_buffer.write_pixel(x + dx, y + dy, black);
+                    buffer.write_pixel(x + dx, y + dy, black);
                 } else if c == b'.' {
                     let white = &PixelColor::new(255, 255, 255);
-                    self.frame_buffer.write_pixel(x + dx, y + dy, white);
+                    buffer.write_pixel(x + dx, y + dy, white);
                 }
-            }
-        }
-    }
-
-    fn erase_mouse(&self) {
-        let (old_x, old_y) = self.current_pos;
-        for dy in 0..MOUSE_CURSOR_HEIGHT {
-            for dx in 0..MOUSE_CURSOR_WIDTH {
-                let pixels_per_scan_line = self.frame_buffer.get_pixels_per_scan_line();
-                let vertical_resolution = self.frame_buffer.get_vertical_resolution();
-                if old_x + dx >= pixels_per_scan_line || old_y + dy >= vertical_resolution {
-                    continue;
-                }
-                self.frame_buffer.write_pixel(
-                    old_x + dx,
-                    old_y + dy,
-                    &PixelColor::new(255, 255, 255),
-                );
             }
         }
     }
