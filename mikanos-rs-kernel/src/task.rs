@@ -156,3 +156,55 @@ pub extern "C" fn switch_context(next_ctx: &mut TaskContext, current_ctx: &mut T
         );
     }
 }
+
+// Create task contexts
+static mut TASK_A_CTX: TaskContext = TaskContext::new();
+static mut TASK_B_CTX: TaskContext = TaskContext::new();
+
+#[allow(static_mut_refs)]
+fn task_b() {
+    let mut cnt = 0;
+    loop {
+        cnt += 1;
+        let msg = alloc::format!("(Task B) count={}\n", cnt);
+        crate::serial_print!("{}", msg);
+        unsafe {
+            switch_task();
+        }
+    }
+}
+
+pub fn initialize_task_b_ctx() {
+    let task_b_stack: alloc::vec::Vec<u64> = alloc::vec![0; 1024];
+    unsafe {
+        TASK_B_CTX.rip = task_b as u64;
+        let mut cr3: u64;
+        core::arch::asm!(
+            "mov rax, cr3",
+            out("rax") cr3,
+        );
+        TASK_B_CTX.cr3 = cr3;
+        TASK_B_CTX.rflags = 0x202; // IF=1
+        TASK_B_CTX.cs = 0x08;
+        TASK_B_CTX.ss = 0;
+        TASK_B_CTX.rsp = task_b_stack.as_ptr() as u64 + 8 * 1024;
+    }
+}
+
+#[allow(static_mut_refs)]
+static mut CURRENT_TASK: &mut TaskContext = unsafe { &mut TASK_A_CTX };
+
+#[allow(static_mut_refs)]
+pub unsafe fn switch_task() {
+    unsafe {
+        if core::ptr::eq(CURRENT_TASK, &mut TASK_A_CTX) {
+            // task A -> task B
+            CURRENT_TASK = &mut TASK_B_CTX;
+            switch_context(&mut TASK_B_CTX, &mut TASK_A_CTX);
+        } else {
+            // task B -> task A
+            CURRENT_TASK = &mut TASK_A_CTX;
+            switch_context(&mut TASK_A_CTX, &mut TASK_B_CTX);
+        }
+    }
+}
