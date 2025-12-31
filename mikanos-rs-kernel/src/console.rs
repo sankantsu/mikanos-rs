@@ -1,7 +1,61 @@
 use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
+use uefi::proto::console::gop::PixelFormat;
+
+struct ShadowBuffer {
+    buffer: alloc::vec::Vec<u8>,
+    pixels_per_scanline: usize,
+    horizontal_resolution: usize,
+    vertical_resolution: usize,
+    pixel_format: PixelFormat,
+}
+
+impl ShadowBuffer {
+    pub fn new(
+        pixels_per_scanline: usize,
+        horizontal_resolution: usize,
+        vertical_resolution: usize,
+        pixel_format: PixelFormat,
+    ) -> Self {
+        let bufsize = 4 * pixels_per_scanline * vertical_resolution;
+        Self {
+            buffer: alloc::vec![0; bufsize],
+            pixels_per_scanline,
+            horizontal_resolution,
+            vertical_resolution,
+            pixel_format,
+        }
+    }
+}
+
+impl FrameBufferWriter for ShadowBuffer {
+    fn get_buffer_mut(&self) -> *mut u8 {
+        self.buffer.as_ptr() as *mut u8
+    }
+
+    fn size(&self) -> usize {
+        4 * self.pixels_per_scanline * self.vertical_resolution
+    }
+
+    fn get_pixel_format(&self) -> PixelFormat {
+        self.pixel_format
+    }
+
+    fn get_pixels_per_scan_line(&self) -> usize {
+        self.pixels_per_scanline
+    }
+
+    fn get_horizontal_resolution(&self) -> usize {
+        self.horizontal_resolution
+    }
+
+    fn get_vertical_resolution(&self) -> usize {
+        self.vertical_resolution
+    }
+}
 
 pub struct Console {
     frame_buffer: &'static FrameBuffer,
+    shadow_buffer: ShadowBuffer,
     fg_color: PixelColor,
     bg_color: PixelColor,
     cursor_row: usize,
@@ -17,8 +71,16 @@ impl Console {
         fg_color: PixelColor,
         bg_color: PixelColor,
     ) -> Self {
+        let shadow_buffer = ShadowBuffer::new(
+            frame_buffer.get_pixels_per_scan_line(),
+            frame_buffer.get_horizontal_resolution(),
+            frame_buffer.get_vertical_resolution(),
+            frame_buffer.get_pixel_format(),
+        );
+        shadow_buffer.fill(&bg_color);
         Self {
             frame_buffer,
+            shadow_buffer,
             fg_color,
             bg_color,
             cursor_row: 0,
@@ -38,7 +100,7 @@ impl Console {
     fn write_byte(&mut self, b: u8) {
         let x = 8 * self.cursor_col;
         let y = 16 * self.cursor_row;
-        self.frame_buffer.write_ascii(x, y, b, &self.fg_color);
+        self.shadow_buffer.write_ascii(x, y, b, &self.fg_color);
         self.buffer[self.cursor_row][self.cursor_col] = b;
         self.cursor_col += 1;
         if self.cursor_col == Self::N_COLS {
@@ -54,7 +116,7 @@ impl Console {
         }
     }
     fn scroll_line(&mut self) {
-        self.frame_buffer.fill(&self.bg_color);
+        self.shadow_buffer.fill(&self.bg_color);
         self.cursor_col = 0;
         self.cursor_row = 0;
         for row in 0..(Self::N_ROWS - 1) {
@@ -64,5 +126,13 @@ impl Console {
             }
         }
         self.buffer[Self::N_ROWS - 1].fill(0);
+    }
+    pub fn draw(&mut self) {
+        let src = self.shadow_buffer.get_buffer_mut();
+        let dst = self.frame_buffer.get_buffer_mut();
+        let count = self.frame_buffer.size();
+        unsafe {
+            core::ptr::copy(src, dst, count);
+        }
     }
 }

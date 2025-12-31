@@ -84,8 +84,6 @@ pub extern "C" fn kernel_main_new_stack(
         timer::init_local_apic_timer();
     }
 
-    frame_buffer.fill(&PixelColor::new(255, 255, 255));
-
     let mut console = Console::new(
         &frame_buffer,
         PixelColor::new(0, 0, 0),
@@ -155,6 +153,8 @@ pub extern "C" fn kernel_main_new_stack(
             serial_print!("{}", msg);
         }
 
+        console.draw();
+
         if event::get_event_queue().lock().is_empty() {
             continue;
         }
@@ -176,7 +176,7 @@ pub extern "C" fn kernel_main_new_stack(
                 );
                 console.put_string(&s);
                 if value > 0 {
-                    let next_timeout = timeout + 10000;
+                    let next_timeout = timeout + 100;
                     let next_value = value + 1;
                     timer::add_timer(timer::Timer::new(next_timeout, next_value));
                 }
