@@ -1,6 +1,6 @@
 #![no_std]
 #![no_main]
-#![feature(abi_x86_interrupt)]
+#![feature(abi_x86_interrupt, naked_functions)]
 extern crate alloc;
 
 mod allocator;
@@ -15,6 +15,7 @@ mod pci;
 mod queue;
 mod segment;
 mod serial;
+mod task;
 mod timer;
 mod xhci;
 
@@ -134,6 +135,7 @@ pub unsafe extern "C" fn kernel_main(
 }
 
 #[unsafe(no_mangle)]
+#[allow(static_mut_refs)]
 pub extern "C" fn kernel_main_new_stack(
     frame_buffer: &'static FrameBuffer,
     memory_map: &'static MemoryMapOwned,
@@ -200,7 +202,9 @@ pub extern "C" fn kernel_main_new_stack(
 
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
-    timer::add_timer(timer::Timer::new(600, -1));
+    task::initialize_task_switch();
+    task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
+    task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
 
     // Start responding hardware and timer interrupts.
     enable_maskable_interrupts();
@@ -208,8 +212,16 @@ pub extern "C" fn kernel_main_new_stack(
     serial_println!("Checking for a xhc event...");
 
     console.put_string("Started!\n");
+
     // main event loop
+    let mut cnt = 0;
     loop {
+        cnt += 1;
+        if cnt % 10000 == 0 {
+            let msg = alloc::format!("(Task A) count={}\n", cnt);
+            serial_print!("{}", msg);
+        }
+
         if event::get_event_queue().lock().is_empty() {
             continue;
         }

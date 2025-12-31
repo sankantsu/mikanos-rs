@@ -226,4 +226,11 @@ extern "x86-interrupt" fn handle_timer_event() {
         crate::timer::TIMER_MANAGER.tick();
     };
     notify_end_of_interrupt();
+
+    unsafe {
+        if crate::timer::TIMER_MANAGER.check_task_timeout() {
+            crate::timer::TIMER_MANAGER.reset_task_timeout();
+            crate::task::switch_task();
+        }
+    }
 }
