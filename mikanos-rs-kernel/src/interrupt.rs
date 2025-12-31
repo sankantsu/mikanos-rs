@@ -203,20 +203,23 @@ fn notify_end_of_interrupt() {
     unsafe { *eoi_reg = 0 };
 }
 
-pub extern "x86-interrupt" fn handle_division_error() {
+extern "x86-interrupt" fn handle_division_error() {
     crate::serial_println!("Zero division detected!");
     panic!();
 }
 
-pub extern "x86-interrupt" fn handle_double_fault() {
+extern "x86-interrupt" fn handle_double_fault() {
     crate::serial_println!("Double fault detected!");
     panic!();
 }
 
-pub extern "x86-interrupt" fn handle_xhci_event() {
+extern "x86-interrupt" fn handle_xhci_event() {
     use crate::event::Event;
-    if let Err(_event) = unsafe { crate::event::get_event_queue_raw().lock().push(Event::XHCI) } {
-        crate::serial_println!("Warning: EVENT_QUEUE full, XHCI event dropped");
+    unsafe {
+        crate::event::get_event_queue_raw()
+            .lock()
+            .push(Event::XHCI)
+            .unwrap();
     }
     notify_end_of_interrupt();
 }
