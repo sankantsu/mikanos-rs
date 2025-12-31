@@ -56,6 +56,7 @@ impl Ord for Timer {
 pub struct TimerManager {
     tick: core::sync::atomic::AtomicU64,
     timers: alloc::collections::BinaryHeap<Timer>,
+    task_timeout: bool,
 }
 
 impl TimerManager {
@@ -63,6 +64,7 @@ impl TimerManager {
         TimerManager {
             tick: core::sync::atomic::AtomicU64::new(0),
             timers: alloc::collections::BinaryHeap::new(),
+            task_timeout: false,
         }
     }
     fn add_timer(&mut self, timer: Timer) {
@@ -77,13 +79,28 @@ impl TimerManager {
                 // No need to handle timeout
                 break;
             }
-            let event = crate::event::Event::Timeout(t.timeout, t.value);
-            crate::event::get_event_queue().lock().push(event).unwrap();
+            if t.value == crate::task::TASK_TIMEOUT_MESSAGE {
+                // task timeout event
+                self.task_timeout = true;
+                crate::task::add_task_timeout_timer(
+                    self.tick.load(core::sync::atomic::Ordering::Relaxed),
+                );
+            } else {
+                // other timeout events
+                let event = crate::event::Event::Timeout(t.timeout, t.value);
+                crate::event::get_event_queue().lock().push(event).unwrap();
+            }
             self.timers.pop().unwrap();
         }
     }
     pub fn get_tick(&self) -> u64 {
         self.tick.load(core::sync::atomic::Ordering::Relaxed)
+    }
+    pub fn check_task_timeout(&self) -> bool {
+        self.task_timeout
+    }
+    pub fn reset_task_timeout(&mut self) {
+        self.task_timeout = false;
     }
 }
 

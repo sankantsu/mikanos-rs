@@ -1,3 +1,6 @@
+pub const TASK_TIMEOUT_INTERVAL: u64 = 10;
+pub const TASK_TIMEOUT_MESSAGE: i64 = i64::MAX;
+
 #[repr(C, align(16))]
 pub struct TaskContext {
     // The same layout as the original MikanOS
@@ -168,9 +171,6 @@ fn task_b() {
         cnt += 1;
         let msg = alloc::format!("(Task B) count={}\n", cnt);
         crate::serial_print!("{}", msg);
-        unsafe {
-            switch_task();
-        }
     }
 }
 
@@ -207,4 +207,16 @@ pub unsafe fn switch_task() {
             switch_context(&mut TASK_A_CTX, &mut TASK_B_CTX);
         }
     }
+}
+
+pub fn add_task_timeout_timer(tick: u64) {
+    crate::timer::add_timer(crate::timer::Timer::new(
+        tick + TASK_TIMEOUT_INTERVAL,
+        TASK_TIMEOUT_MESSAGE,
+    ));
+}
+
+pub fn initialize_task_switch() {
+    let initial_tick = 0;
+    add_task_timeout_timer(initial_tick)
 }

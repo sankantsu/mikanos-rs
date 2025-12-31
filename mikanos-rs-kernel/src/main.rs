@@ -204,7 +204,7 @@ pub extern "C" fn kernel_main_new_stack(
 
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
-    timer::add_timer(timer::Timer::new(600, -1));
+    task::initialize_task_switch();
 
     // Start responding hardware and timer interrupts.
     enable_maskable_interrupts();
@@ -219,9 +219,6 @@ pub extern "C" fn kernel_main_new_stack(
         cnt += 1;
         let msg = alloc::format!("(Task A) count={}\n", cnt);
         serial_print!("{}", msg);
-        unsafe {
-            task::switch_task();
-        }
 
         if event::get_event_queue().lock().is_empty() {
             continue;
