@@ -161,8 +161,6 @@ pub extern "C" fn kernel_main_new_stack(
     for _ in 0..100 {
         let dummy_event = MouseEvent::new(0, -10, 0);
         mouse::get_mouse().lock().move_mouse(&dummy_event);
-
-        for _ in 0..300000 {}
     }
 
     // Scan PCI bus and find xHCI controller
@@ -243,7 +241,7 @@ pub extern "C" fn kernel_main_new_stack(
                 );
                 console.put_string(&s);
                 if value > 0 {
-                    let next_timeout = timeout + 100;
+                    let next_timeout = timeout + 10000;
                     let next_value = value + 1;
                     timer::add_timer(timer::Timer::new(next_timeout, next_value));
                 }
