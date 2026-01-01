@@ -53,13 +53,15 @@ impl FrameBufferWriter for ShadowBuffer {
     }
 }
 
+const CHAR_WIDTH: usize = 8;
+const CHAR_HEIGHT: usize = 16;
+
 pub struct Console {
     shadow_buffer: ShadowBuffer,
     fg_color: PixelColor,
     bg_color: PixelColor,
     cursor_row: usize,
     cursor_col: usize,
-    buffer: [[u8; Console::N_COLS]; Console::N_ROWS],
 }
 
 impl Console {
@@ -83,7 +85,6 @@ impl Console {
             bg_color,
             cursor_row: 0,
             cursor_col: 0,
-            buffer: [[0; Self::N_COLS]; Self::N_ROWS],
         }
     }
     pub fn put_string(&mut self, s: &str) {
@@ -96,10 +97,9 @@ impl Console {
         }
     }
     fn write_byte(&mut self, b: u8) {
-        let x = 8 * self.cursor_col;
-        let y = 16 * self.cursor_row;
+        let x = CHAR_WIDTH * self.cursor_col;
+        let y = CHAR_HEIGHT * self.cursor_row;
         self.shadow_buffer.write_ascii(x, y, b, &self.fg_color);
-        self.buffer[self.cursor_row][self.cursor_col] = b;
         self.cursor_col += 1;
         if self.cursor_col == Self::N_COLS {
             self.new_line();
@@ -114,16 +114,21 @@ impl Console {
         }
     }
     fn scroll_line(&mut self) {
-        self.shadow_buffer.fill(&self.bg_color);
-        self.cursor_col = 0;
-        self.cursor_row = 0;
-        for row in 0..(Self::N_ROWS - 1) {
-            self.buffer[row] = self.buffer[row + 1];
-            for col in 0..Self::N_COLS {
-                self.write_byte(self.buffer[row][col]);
+        unsafe {
+            let offset = 4 * self.shadow_buffer.get_pixels_per_scan_line() * CHAR_HEIGHT;
+            let src = self.shadow_buffer.get_buffer_mut().add(offset);
+            let dst = self.shadow_buffer.get_buffer_mut();
+            let count =
+                4 * self.shadow_buffer.get_pixels_per_scan_line() * CHAR_HEIGHT * Self::N_ROWS;
+            core::ptr::copy(src, dst, count);
+            for x in 0..self.shadow_buffer.get_horizontal_resolution() {
+                for y in
+                    ((Self::N_ROWS - 1) * CHAR_HEIGHT)..self.shadow_buffer.get_vertical_resolution()
+                {
+                    self.shadow_buffer.write_pixel(x, y, &self.bg_color)
+                }
             }
         }
-        self.buffer[Self::N_ROWS - 1].fill(0);
     }
     pub fn get_buffer(&mut self) -> &mut ShadowBuffer {
         &mut self.shadow_buffer
