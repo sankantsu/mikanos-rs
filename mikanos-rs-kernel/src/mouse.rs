@@ -23,9 +23,6 @@ pub struct Mouse {
 
 static MOUSE: spin::Once<spin::Mutex<Mouse>> = spin::Once::new();
 
-// See https://github.com/sankantsu/mikanos-rs/issues/17
-unsafe impl Send for Mouse {}
-
 pub fn init_mouse(initial_pos: (usize, usize), screen_size: (usize, usize)) {
     MOUSE.call_once(|| spin::Mutex::new(Mouse::new(initial_pos, screen_size)));
     ()
