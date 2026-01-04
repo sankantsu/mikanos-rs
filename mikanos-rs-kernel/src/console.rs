@@ -63,6 +63,7 @@ pub struct Console {
     cursor_row: usize,
     cursor_col: usize,
     font_data: fontdue::Font,
+    font_cache: hashbrown::HashMap<char, (fontdue::Metrics, alloc::vec::Vec<u8>)>,
 }
 
 impl Console {
@@ -90,6 +91,7 @@ impl Console {
             cursor_row: 0,
             cursor_col: 0,
             font_data,
+            font_cache: hashbrown::HashMap::new(),
         }
     }
     pub fn put_string(&mut self, s: &str) {
@@ -104,7 +106,10 @@ impl Console {
     fn write_byte(&mut self, b: u8) {
         let x = CHAR_WIDTH * self.cursor_col;
         let y = CHAR_HEIGHT * self.cursor_row;
-        let (metrics, bitmap) = self.font_data.rasterize(b as char, 16.0);
+        let (metrics, bitmap) = self
+            .font_cache
+            .entry(b as char)
+            .or_insert_with(|| self.font_data.rasterize(b as char, 16.0));
         let metrics = FontMetrics::new(metrics.xmin, metrics.ymin, metrics.width, metrics.height);
         let font = Font::new(metrics, bitmap.as_ptr());
         self.shadow_buffer.write_char(x, y, &font, &self.fg_color);
