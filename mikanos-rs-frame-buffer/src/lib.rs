@@ -7,6 +7,43 @@ use uefi::proto::console::gop::{GraphicsOutput, PixelFormat};
 
 use font::FONTS;
 
+pub struct FontMetrics {
+    xmin: i32,
+    ymin: i32,
+    width: usize,
+    height: usize,
+}
+
+impl FontMetrics {
+    pub fn new(xmin: i32, ymin: i32, width: usize, height: usize) -> Self {
+        Self {
+            xmin,
+            ymin,
+            width,
+            height,
+        }
+    }
+}
+
+pub struct Font {
+    metrics: FontMetrics,
+    bitmap_ptr: *const u8,
+}
+
+impl Font {
+    pub fn new(metrics: FontMetrics, bitmap_ptr: *const u8) -> Self {
+        Self {
+            metrics,
+            bitmap_ptr,
+        }
+    }
+
+    pub fn get_bitmap(&self) -> &[u8] {
+        let size = self.metrics.width * self.metrics.height;
+        unsafe { core::slice::from_raw_parts(self.bitmap_ptr, size) }
+    }
+}
+
 pub struct PixelColor {
     r: u8,
     g: u8,
@@ -56,6 +93,25 @@ pub trait FrameBufferWriter {
             for dx in 0..8 {
                 if ((FONTS[ch as usize][dy] << dx) & 0x80) != 0 {
                     self.write_pixel(x + dx, y + dy, color);
+                }
+            }
+        }
+    }
+
+    fn write_char(&self, x: usize, y: usize, f: &Font, color: &PixelColor) {
+        let threshold = 80;
+        let bitmap = f.get_bitmap();
+        for i in 0..f.metrics.height {
+            for j in 0..f.metrics.width {
+                let idx = i * f.metrics.width + j;
+                if bitmap[idx] < threshold {
+                    continue;
+                }
+                let py =
+                    (y as i32 + 16 - f.metrics.height as i32 - f.metrics.ymin + i as i32) as usize;
+                let px = (x as i32 + j as i32) as usize;
+                if py < self.get_vertical_resolution() && px < self.get_horizontal_resolution() {
+                    self.write_pixel(px, py, color);
                 }
             }
         }

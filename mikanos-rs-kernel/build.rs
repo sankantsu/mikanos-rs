@@ -13,6 +13,18 @@ fn main() {
             .unwrap();
     }
 
+    std::fs::create_dir_all("./fonts/").unwrap();
+
+    if !std::fs::exists("./fonts/Tamzen7x14r.ttf").unwrap() {
+        std::process::Command::new("wget")
+            .args([
+                "https://raw.githubusercontent.com/sunaku/tamzen-font/3255e8259bc9b880c60ab8b737ec8aa574e00d75/ttf/Tamzen7x14r.ttf"
+            ])
+            .current_dir("./fonts/")
+            .status()
+            .unwrap();
+    }
+
     let newlib_support_object = cc::Build::new()
         .flag("-Wno-unused-parameter")
         .flag("-ffreestanding")
