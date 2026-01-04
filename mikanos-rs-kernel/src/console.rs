@@ -1,4 +1,4 @@
-use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
+use mikanos_rs_frame_buffer::{Font, FontMetrics, FrameBuffer, FrameBufferWriter, PixelColor};
 use uefi::proto::console::gop::PixelFormat;
 
 pub struct ShadowBuffer {
@@ -62,6 +62,7 @@ pub struct Console {
     bg_color: PixelColor,
     cursor_row: usize,
     cursor_col: usize,
+    font_data: fontdue::Font,
 }
 
 impl Console {
@@ -79,12 +80,16 @@ impl Console {
             frame_buffer.get_pixel_format(),
         );
         shadow_buffer.fill(&bg_color);
+        let raw_font = include_bytes!("../fonts/Tamzen7x14r.ttf") as &[u8];
+        let font_data =
+            fontdue::Font::from_bytes(raw_font, fontdue::FontSettings::default()).unwrap();
         Self {
             shadow_buffer,
             fg_color,
             bg_color,
             cursor_row: 0,
             cursor_col: 0,
+            font_data,
         }
     }
     pub fn put_string(&mut self, s: &str) {
@@ -99,7 +104,10 @@ impl Console {
     fn write_byte(&mut self, b: u8) {
         let x = CHAR_WIDTH * self.cursor_col;
         let y = CHAR_HEIGHT * self.cursor_row;
-        self.shadow_buffer.write_ascii(x, y, b, &self.fg_color);
+        let (metrics, bitmap) = self.font_data.rasterize(b as char, 16.0);
+        let metrics = FontMetrics::new(metrics.xmin, metrics.ymin, metrics.width, metrics.height);
+        let font = Font::new(metrics, bitmap.as_ptr());
+        self.shadow_buffer.write_char(x, y, &font, &self.fg_color);
         self.cursor_col += 1;
         if self.cursor_col == Self::N_COLS {
             self.new_line();

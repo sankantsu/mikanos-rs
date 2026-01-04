@@ -12,6 +12,7 @@ spin = "0.10.0"
 uart_16550 = "0.2.0"
 x86_64 = "0.14.2"
 linked_list_allocator = "0.10.5"
+fontdue = { version = "0.9.2", features = ["hashbrown"], default-features = false }
 
 [build-dependencies]
 cc = "1.2.29"

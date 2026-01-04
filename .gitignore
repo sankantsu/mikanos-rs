@@ -2,3 +2,4 @@
 /esp
 **/x86_64-elf/
 **/x86_64-elf.tar.gz
+**/*.ttf
