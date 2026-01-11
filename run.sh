@@ -13,7 +13,7 @@ popd
 # Make EFI system partition
 mkdir -p esp/efi/boot
 cp target/x86_64-unknown-uefi/debug/mikanos-rs-loader.efi esp/efi/boot/bootx64.efi
-cp target/x86_64-mikanos_rs/debug/mikanos-rs-kernel esp/kernel.elf
+cp target/x86_64-unknown-none/debug/mikanos-rs-kernel esp/kernel.elf
 
 # Launch VM
 qemu-system-x86_64 \
