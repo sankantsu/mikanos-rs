@@ -82,9 +82,16 @@ pub enum TaskDescriptor {
 }
 
 #[derive(Debug)]
+pub enum TaskStatus {
+    Running,
+    Sleeping,
+}
+
+#[derive(Debug)]
 pub struct Task {
     _stack: alloc::vec::Vec<u64>,
     context: TaskContext,
+    status: TaskStatus,
 }
 
 impl Task {
@@ -113,7 +120,11 @@ impl Task {
         Self {
             _stack: task_stack,
             context: task_ctx,
+            status: TaskStatus::Running,
         }
+    }
+    pub fn set_status(&mut self, status: TaskStatus) {
+        self.status = status;
     }
 }
 
@@ -135,9 +146,22 @@ impl TaskPool {
     pub fn add_task(&mut self, task: Task) {
         self.tasks.push(task);
     }
+    fn next_id(&self, id: usize) -> usize {
+        (id + 1) % self.tasks.len()
+    }
     pub fn switch_task(&mut self) {
         let current_task_idx = self.current_task_idx;
-        let next_task_idx = (self.current_task_idx + 1) % self.tasks.len();
+        let mut next_task_idx = self.next_id(current_task_idx);
+        loop {
+            match self.tasks[next_task_idx].status {
+                TaskStatus::Running => {
+                    break;
+                }
+                TaskStatus::Sleeping => {
+                    next_task_idx = self.next_id(next_task_idx);
+                }
+            }
+        }
         self.current_task_idx = next_task_idx;
         if next_task_idx == 0 {
             let (left, right) = self.tasks.split_at_mut(current_task_idx);
@@ -146,6 +170,10 @@ impl TaskPool {
             let (left, right) = self.tasks.split_at_mut(next_task_idx);
             switch_context(&mut right[0].context, &mut left[current_task_idx].context);
         }
+    }
+    pub fn sleep_task_c(&mut self) {
+        let task_c_idx = 2;
+        self.tasks[task_c_idx].set_status(TaskStatus::Sleeping);
     }
 }
 
@@ -290,5 +318,12 @@ pub fn add_task(task: Task) {
 pub unsafe fn switch_task() {
     unsafe {
         TASK_POOL.get_mut().unwrap().switch_task();
+    }
+}
+
+#[allow(static_mut_refs)]
+pub fn sleep_task_c() {
+    unsafe {
+        TASK_POOL.get_mut().unwrap().sleep_task_c();
     }
 }

@@ -161,6 +161,10 @@ pub extern "C" fn kernel_main_new_stack(
             let msg = alloc::format!("(Task A) count={}\n", cnt);
             serial_print!("{}", msg);
         }
+        if cnt == 200 {
+            crate::serial_println!("Sleep Task C...");
+            task::sleep_task_c();
+        }
 
         // Draw screen
         copy_buffer(console.get_buffer(), &shadow_buffer);
