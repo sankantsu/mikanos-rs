@@ -136,8 +136,8 @@ pub extern "C" fn kernel_main_new_stack(
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
     task::initialize_task_switch();
-    task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
-    task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
+    let task_b_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
+    let task_c_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
 
     let mut shadow_buffer = ShadowBuffer::new(
         frame_buffer.get_pixels_per_scan_line(),
@@ -160,6 +160,14 @@ pub extern "C" fn kernel_main_new_stack(
         if cnt % 10000 == 0 {
             let msg = alloc::format!("(Task A) count={}\n", cnt);
             serial_print!("{}", msg);
+        }
+        if cnt == 200 {
+            crate::serial_println!("Sleep Task C...");
+            task::sleep_task(&task_c_id);
+        }
+        if cnt == 400 {
+            crate::serial_println!("Sleep Task B...");
+            task::sleep_task(&task_b_id);
         }
 
         // Draw screen

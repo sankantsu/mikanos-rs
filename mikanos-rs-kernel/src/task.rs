@@ -1,3 +1,5 @@
+use x86_64::instructions::interrupts::without_interrupts;
+
 pub const TASK_TIMEOUT_INTERVAL: u64 = 10;
 pub const TASK_TIMEOUT_MESSAGE: i64 = i64::MAX;
 
@@ -82,9 +84,43 @@ pub enum TaskDescriptor {
 }
 
 #[derive(Debug)]
+pub enum TaskStatus {
+    Running,
+    Sleeping,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct TaskID {
+    id: u64,
+}
+
+pub struct TaskIDAllocator {
+    next_id: u64,
+}
+
+impl TaskIDAllocator {
+    pub const fn new() -> Self {
+        Self { next_id: 0 }
+    }
+    pub fn allocate(&mut self) -> TaskID {
+        let task_id = TaskID { id: self.next_id };
+        self.next_id += 1;
+        task_id
+    }
+}
+
+static TASK_ID_ALLOCATOR: spin::Mutex<TaskIDAllocator> = spin::Mutex::new(TaskIDAllocator::new());
+
+fn allocate_task_id() -> TaskID {
+    without_interrupts(|| TASK_ID_ALLOCATOR.lock().allocate())
+}
+
+#[derive(Debug)]
 pub struct Task {
+    id: TaskID,
     _stack: alloc::vec::Vec<u64>,
     context: TaskContext,
+    status: TaskStatus,
 }
 
 impl Task {
@@ -110,10 +146,16 @@ impl Task {
                 }
             }
         }
+        let task_id = allocate_task_id();
         Self {
+            id: task_id,
             _stack: task_stack,
             context: task_ctx,
+            status: TaskStatus::Running,
         }
+    }
+    pub fn set_status(&mut self, status: TaskStatus) {
+        self.status = status;
     }
 }
 
@@ -135,10 +177,31 @@ impl TaskPool {
     pub fn add_task(&mut self, task: Task) {
         self.tasks.push(task);
     }
+    fn get_task_idx(&self, task_id: &TaskID) -> Option<usize> {
+        self.tasks.iter().position(|task| task.id == *task_id)
+    }
+    fn next_id(&self, id: usize) -> usize {
+        (id + 1) % self.tasks.len()
+    }
     pub fn switch_task(&mut self) {
         let current_task_idx = self.current_task_idx;
-        let next_task_idx = (self.current_task_idx + 1) % self.tasks.len();
+        let mut next_task_idx = self.next_id(current_task_idx);
+        loop {
+            match self.tasks[next_task_idx].status {
+                TaskStatus::Running => {
+                    break;
+                }
+                TaskStatus::Sleeping => {
+                    next_task_idx = self.next_id(next_task_idx);
+                }
+            }
+        }
         self.current_task_idx = next_task_idx;
+        if next_task_idx == current_task_idx {
+            // No other schedulable tasks exist.
+            // Return directly to the timer ISR, which will resume the interrupted routine via iretq.
+            return;
+        }
         if next_task_idx < current_task_idx {
             let (left, right) = self.tasks.split_at_mut(current_task_idx);
             switch_context(&mut left[next_task_idx].context, &mut right[0].context);
@@ -146,6 +209,10 @@ impl TaskPool {
             let (left, right) = self.tasks.split_at_mut(next_task_idx);
             switch_context(&mut right[0].context, &mut left[current_task_idx].context);
         }
+    }
+    fn sleep_task(&mut self, task_id: &TaskID) -> Option<()> {
+        self.get_task_idx(task_id)
+            .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Sleeping))
     }
 }
 
@@ -278,15 +345,24 @@ pub fn initialize_task_switch() {
 }
 
 #[allow(static_mut_refs)]
-pub fn add_task(task: Task) {
+pub fn add_task(task: Task) -> TaskID {
+    let task_id = task.id;
     unsafe {
         TASK_POOL.get_mut().unwrap().add_task(task);
     }
+    task_id
 }
 
 #[allow(static_mut_refs)]
 pub unsafe fn switch_task() {
     unsafe {
         TASK_POOL.get_mut().unwrap().switch_task();
+    }
+}
+
+#[allow(static_mut_refs)]
+pub fn sleep_task(task_id: &TaskID) {
+    unsafe {
+        TASK_POOL.get_mut().unwrap().sleep_task(task_id);
     }
 }
