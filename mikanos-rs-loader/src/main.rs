@@ -50,6 +50,10 @@ fn load_elf(elf_data: &[u8]) -> elf::Elf {
     let memsz = addr_end - addr_start;
     let page_size = 0x1000;
     let page_cnt = (memsz + page_size - 1) / page_size;
+    info!(
+        "Try allocating {:x} pages starting at {:x}.",
+        page_cnt, addr_start
+    );
     boot::allocate_pages(
         boot::AllocateType::Address(addr_start as u64),
         boot::MemoryType::LOADER_DATA,
@@ -141,6 +145,7 @@ fn main() -> Status {
         .into_regular_file()
         .unwrap();
     let entry = load_kernel(&mut kernel_file).expect("Failed to load kernel");
+    info!("entry: {:x}", entry as u64);
     info!("Successfully loaded kernel!");
 
     info!("Exiting boot services...");
