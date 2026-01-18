@@ -239,7 +239,6 @@ pub extern "C" fn switch_context(next_ctx: &mut TaskContext, current_ctx: &mut T
     }
 }
 
-#[allow(static_mut_refs)]
 pub fn task_b() {
     let mut cnt = 0;
     loop {
@@ -251,7 +250,6 @@ pub fn task_b() {
     }
 }
 
-#[allow(static_mut_refs)]
 pub fn task_c() {
     let mut cnt = 0;
     loop {
