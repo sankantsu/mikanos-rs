@@ -139,9 +139,9 @@ impl TaskPool {
         let current_task_idx = self.current_task_idx;
         let next_task_idx = (self.current_task_idx + 1) % self.tasks.len();
         self.current_task_idx = next_task_idx;
-        if next_task_idx == 0 {
+        if next_task_idx < current_task_idx {
             let (left, right) = self.tasks.split_at_mut(current_task_idx);
-            switch_context(&mut left[0].context, &mut right[0].context);
+            switch_context(&mut left[next_task_idx].context, &mut right[0].context);
         } else {
             let (left, right) = self.tasks.split_at_mut(next_task_idx);
             switch_context(&mut right[0].context, &mut left[current_task_idx].context);
@@ -239,7 +239,6 @@ pub extern "C" fn switch_context(next_ctx: &mut TaskContext, current_ctx: &mut T
     }
 }
 
-#[allow(static_mut_refs)]
 pub fn task_b() {
     let mut cnt = 0;
     loop {
@@ -251,7 +250,6 @@ pub fn task_b() {
     }
 }
 
-#[allow(static_mut_refs)]
 pub fn task_c() {
     let mut cnt = 0;
     loop {
