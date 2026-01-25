@@ -169,6 +169,11 @@ pub extern "C" fn kernel_main_new_stack(
             crate::serial_println!("Sleep Task B...");
             task::sleep_task(&task_b_id);
         }
+        if cnt == 2000 {
+            crate::serial_println!("Wake-up Tasks...");
+            task::wake_up_task(&task_b_id);
+            task::wake_up_task(&task_c_id);
+        }
 
         // Draw screen
         copy_buffer(console.get_buffer(), &shadow_buffer);

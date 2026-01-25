@@ -214,6 +214,10 @@ impl TaskPool {
         self.get_task_idx(task_id)
             .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Sleeping))
     }
+    fn wake_up(&mut self, task_id: &TaskID) -> Option<()> {
+        self.get_task_idx(task_id)
+            .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Running))
+    }
 }
 
 static mut TASK_POOL: core::cell::OnceCell<TaskPool> = core::cell::OnceCell::new();
@@ -364,5 +368,12 @@ pub unsafe fn switch_task() {
 pub fn sleep_task(task_id: &TaskID) {
     unsafe {
         TASK_POOL.get_mut().unwrap().sleep_task(task_id);
+    }
+}
+
+#[allow(static_mut_refs)]
+pub fn wake_up_task(task_id: &TaskID) {
+    unsafe {
+        TASK_POOL.get_mut().unwrap().wake_up(task_id);
     }
 }
