@@ -88,7 +88,12 @@ impl TimerManager {
             } else {
                 // other timeout events
                 let event = crate::event::Event::Timeout(t.timeout, t.value);
-                crate::event::get_event_queue().lock().push(event).unwrap();
+                unsafe {
+                    crate::event::get_event_queue_raw()
+                        .lock()
+                        .push(event)
+                        .unwrap()
+                };
             }
             self.timers.pop().unwrap();
         }

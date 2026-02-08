@@ -26,6 +26,7 @@ use interrupt::{disable_maskable_interrupts, enable_maskable_interrupts};
 use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::MemoryMapOwned;
+use x86_64::instructions::interrupts::without_interrupts;
 use xhci::{get_xhc, init_xhc};
 
 #[panic_handler]
@@ -137,7 +138,13 @@ pub extern "C" fn kernel_main_new_stack(
     timer::add_timer(timer::Timer::new(200, 2));
     task::initialize_task_switch();
     let main_task_id = task::this_task();
-    event::get_event_queue().lock().set_consumer(main_task_id);
+    unsafe {
+        without_interrupts(|| {
+            event::get_event_queue_raw()
+                .lock()
+                .set_consumer(main_task_id)
+        })
+    }
     let task_b_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
     let task_c_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
 
@@ -194,7 +201,8 @@ pub extern "C" fn kernel_main_new_stack(
         }
         enable_maskable_interrupts();
 
-        let event = event::get_event_queue().lock().pop().unwrap();
+        let event =
+            unsafe { without_interrupts(|| event::get_event_queue_raw().lock().pop().unwrap()) };
 
         match event {
             event::Event::XHCI => {
