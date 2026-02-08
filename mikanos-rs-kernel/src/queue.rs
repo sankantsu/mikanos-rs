@@ -1,22 +1,11 @@
-pub struct Queue<T: Copy + Default, const N: usize> {
+pub struct Queue<T: Copy, const N: usize> {
     buf: [T; N],
     read_pos: usize,
     write_pos: usize,
     count: usize,
 }
 
-impl<T: Copy + Default, const N: usize> Default for Queue<T, N> {
-    fn default() -> Self {
-        Self {
-            buf: [T::default(); N],
-            read_pos: 0,
-            write_pos: 0,
-            count: 0,
-        }
-    }
-}
-
-impl<T: Copy + Default, const N: usize> Queue<T, N> {
+impl<T: Copy, const N: usize> Queue<T, N> {
     pub const fn new(initial_val: T) -> Self {
         Self {
             buf: [initial_val; N],
