@@ -22,7 +22,7 @@ mod xhci;
 
 use console::{Console, ShadowBuffer, copy_buffer};
 use core::panic::PanicInfo;
-use interrupt::enable_maskable_interrupts;
+use interrupt::{disable_maskable_interrupts, enable_maskable_interrupts};
 use mikanos_rs_frame_buffer::{FrameBuffer, FrameBufferWriter, PixelColor};
 use mouse::{MouseEvent, init_mouse};
 use uefi::mem::memory_map::MemoryMapOwned;
@@ -136,6 +136,8 @@ pub extern "C" fn kernel_main_new_stack(
     // Timer usage example
     timer::add_timer(timer::Timer::new(200, 2));
     task::initialize_task_switch();
+    let main_task_id = task::this_task();
+    event::get_event_queue().lock().set_consumer(main_task_id);
     let task_b_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
     let task_c_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
 
@@ -161,10 +163,12 @@ pub extern "C" fn kernel_main_new_stack(
             let msg = alloc::format!("(Task A) count={}\n", cnt);
             serial_print!("{}", msg);
         }
-        if cnt == 200 {
-            crate::serial_println!("Sleep Task C...");
-            task::sleep_task(&task_c_id);
-        }
+        // TODO: Add idle task.
+        // If all tasks sleep, swtich_task() loops forever.
+        // if cnt == 200 {
+        //     crate::serial_println!("Sleep Task C...");
+        //     task::sleep_task(&task_c_id);
+        // }
         if cnt == 400 {
             crate::serial_println!("Sleep Task B...");
             task::sleep_task(&task_b_id);
@@ -180,9 +184,16 @@ pub extern "C" fn kernel_main_new_stack(
         mouse::get_mouse().lock().draw_mouse(&mut shadow_buffer);
         copy_buffer(&shadow_buffer, frame_buffer);
 
-        if event::get_event_queue().lock().is_empty() {
+        // Prevent interrupted between is_empty() check and sleep_task().
+        disable_maskable_interrupts();
+        if unsafe { event::get_event_queue_raw().lock().is_empty() } {
+            crate::serial_println!("Event queue is empty, sleeping...");
+            task::sleep_task(&main_task_id);
+            enable_maskable_interrupts();
             continue;
         }
+        enable_maskable_interrupts();
+
         let event = event::get_event_queue().lock().pop().unwrap();
 
         match event {
@@ -200,11 +211,12 @@ pub extern "C" fn kernel_main_new_stack(
                     current_tick
                 );
                 console.put_string(&s);
-                if value > 0 {
-                    let next_timeout = timeout + 100;
-                    let next_value = value + 1;
-                    timer::add_timer(timer::Timer::new(next_timeout, next_value));
-                }
+                // FIXME: serial deadlock occured.
+                // if value > 0 {
+                //     let next_timeout = timeout + 100;
+                //     let next_value = value + 1;
+                //     timer::add_timer(timer::Timer::new(next_timeout, next_value));
+                // }
             }
             event::Event::Invalid => {
                 serial_println!("invalid event!!");

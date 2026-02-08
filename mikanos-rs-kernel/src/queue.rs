@@ -3,6 +3,7 @@ pub struct Queue<T: Copy, const N: usize> {
     read_pos: usize,
     write_pos: usize,
     count: usize,
+    consumer: Option<crate::task::TaskID>,
 }
 
 impl<T: Copy, const N: usize> Queue<T, N> {
@@ -12,6 +13,7 @@ impl<T: Copy, const N: usize> Queue<T, N> {
             read_pos: 0,
             write_pos: 0,
             count: 0,
+            consumer: None,
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -29,7 +31,6 @@ impl<T: Copy, const N: usize> Queue<T, N> {
         self.count -= 1;
         Some(val)
     }
-
     pub fn push(&mut self, val: T) -> Result<(), T> {
         if self.is_full() {
             return Err(val);
@@ -37,6 +38,12 @@ impl<T: Copy, const N: usize> Queue<T, N> {
         self.buf[self.write_pos] = val;
         self.write_pos = (self.write_pos + 1) % N;
         self.count += 1;
+        if let Some(task_id) = self.consumer {
+            crate::task::wake_up_task(&task_id);
+        }
         Ok(())
+    }
+    pub fn set_consumer(&mut self, task_id: crate::task::TaskID) {
+        self.consumer = Some(task_id)
     }
 }
