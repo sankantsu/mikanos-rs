@@ -219,12 +219,11 @@ pub extern "C" fn kernel_main_new_stack(
                     current_tick
                 );
                 console.put_string(&s);
-                // FIXME: serial deadlock occured.
-                // if value > 0 {
-                //     let next_timeout = timeout + 100;
-                //     let next_value = value + 1;
-                //     timer::add_timer(timer::Timer::new(next_timeout, next_value));
-                // }
+                if value > 0 {
+                    let next_timeout = timeout + 100;
+                    let next_value = value + 1;
+                    timer::add_timer(timer::Timer::new(next_timeout, next_value));
+                }
             }
             event::Event::Invalid => {
                 serial_println!("invalid event!!");
