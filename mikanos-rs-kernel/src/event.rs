@@ -3,7 +3,7 @@ use crate::queue::Queue;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimerValue {
     TaskTimeout,
-    Other(i64),
+    Other(i16),
 }
 
 #[derive(Clone, Copy, Debug)]
