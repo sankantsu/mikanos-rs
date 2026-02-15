@@ -1,6 +1,32 @@
 #!/bin/sh
 
-set -ex
+set -e
+
+usage() {
+  echo "Usage: $0 [options]"
+  echo ""
+  echo "Options:"
+  echo "  --wait-debugger    Stop execution at start and wait for a debugger connection (adds -s -S to QEMU)"
+  exit 1
+}
+
+WAIT_DEBUGGER=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --wait-debugger)
+      WAIT_DEBUGGER=1
+      shift
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+QEMU_OPTIONS=""
+if [ "$WAIT_DEBUGGER" -eq 1 ]; then
+  QEMU_OPTIONS="-s -S"
+fi
 
 # Build bootloader
 pushd mikanos-rs-loader && cargo build
@@ -24,4 +50,5 @@ qemu-system-x86_64 \
   -drive format=raw,file=fat:rw:esp \
   -device nec-usb-xhci,id=xhci \
   -device usb-mouse \
-  -device usb-kbd
+  -device usb-kbd \
+  $QEMU_OPTIONS
