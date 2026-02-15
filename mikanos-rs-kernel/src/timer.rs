@@ -21,13 +21,15 @@ fn start_local_apic_timer() {
     }
 }
 
+use crate::event::TimerValue;
+
 pub struct Timer {
     timeout: u64,
-    value: i64,
+    value: TimerValue,
 }
 
 impl Timer {
-    pub fn new(timeout: u64, value: i64) -> Self {
+    pub fn new(timeout: u64, value: TimerValue) -> Self {
         Self { timeout, value }
     }
 }
@@ -79,21 +81,24 @@ impl TimerManager {
                 // No need to handle timeout
                 break;
             }
-            if t.value == crate::task::TASK_TIMEOUT_MESSAGE {
-                // task timeout event
-                self.task_timeout = true;
-                crate::task::add_task_timeout_timer(
-                    self.tick.load(core::sync::atomic::Ordering::Relaxed),
-                );
-            } else {
-                // other timeout events
-                let event = crate::event::Event::Timeout(t.timeout, t.value);
-                unsafe {
-                    crate::event::get_event_queue_raw()
-                        .lock()
-                        .push(event)
-                        .unwrap()
-                };
+            match t.value {
+                TimerValue::TaskTimeout => {
+                    // task timeout event
+                    self.task_timeout = true;
+                    crate::task::add_task_timeout_timer(
+                        self.tick.load(core::sync::atomic::Ordering::Relaxed),
+                    );
+                }
+                TimerValue::Other(_) => {
+                    // other timeout events
+                    let event = crate::event::Event::Timeout(t.timeout, t.value);
+                    unsafe {
+                        crate::event::get_event_queue_raw()
+                            .lock()
+                            .push(event)
+                            .unwrap()
+                    };
+                }
             }
             self.timers.pop().unwrap();
         }

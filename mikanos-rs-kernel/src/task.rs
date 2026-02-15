@@ -1,7 +1,6 @@
 use x86_64::instructions::interrupts::without_interrupts;
 
 pub const TASK_TIMEOUT_INTERVAL: u64 = 10;
-pub const TASK_TIMEOUT_MESSAGE: i64 = i64::MAX;
 
 #[repr(C, align(16))]
 #[derive(Clone, Copy, Debug)]
@@ -338,7 +337,7 @@ pub fn task_c() {
 pub fn add_task_timeout_timer(tick: u64) {
     crate::timer::add_timer(crate::timer::Timer::new(
         tick + TASK_TIMEOUT_INTERVAL,
-        TASK_TIMEOUT_MESSAGE,
+        crate::event::TimerValue::TaskTimeout,
     ));
 }
 

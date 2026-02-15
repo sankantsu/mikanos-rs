@@ -135,7 +135,7 @@ pub extern "C" fn kernel_main_new_stack(
     }
 
     // Timer usage example
-    timer::add_timer(timer::Timer::new(200, 2));
+    timer::add_timer(timer::Timer::new(200, event::TimerValue::Other(2)));
     task::initialize_task_switch();
     let main_task_id = task::this_task();
     unsafe {
@@ -212,17 +212,28 @@ pub extern "C" fn kernel_main_new_stack(
             }
             event::Event::Timeout(timeout, value) => {
                 let current_tick = timer::get_current_tick();
-                let s = alloc::format!(
-                    "Timeout: timeout={}, value={} (current_tick={})\n",
-                    timeout,
-                    value,
-                    current_tick
-                );
-                console.put_string(&s);
-                if value > 0 {
-                    let next_timeout = timeout + 100;
-                    let next_value = value + 1;
-                    timer::add_timer(timer::Timer::new(next_timeout, next_value));
+                match value {
+                    event::TimerValue::Other(v) => {
+                        let s = alloc::format!(
+                            "Timeout: timeout={}, value={} (current_tick={})\n",
+                            timeout,
+                            v,
+                            current_tick
+                        );
+                        console.put_string(&s);
+                        if v > 0 {
+                            let next_timeout = timeout + 100;
+                            let next_value = v + 1;
+                            timer::add_timer(timer::Timer::new(
+                                next_timeout,
+                                event::TimerValue::Other(next_value),
+                            ));
+                        }
+                    }
+                    event::TimerValue::TaskTimeout => {
+                        // TaskTimeout is handled in TimerManager::tick
+                        assert!(false);
+                    }
                 }
             }
             event::Event::Invalid => {
