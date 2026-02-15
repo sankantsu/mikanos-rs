@@ -1,10 +1,16 @@
 use crate::queue::Queue;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimerValue {
+    TaskTimeout,
+    Other(i64),
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum Event {
     Invalid,
     XHCI,
-    Timeout(u64, i64), // timeout, value
+    Timeout(u64, TimerValue), // timeout, value
 }
 
 impl Default for Event {
