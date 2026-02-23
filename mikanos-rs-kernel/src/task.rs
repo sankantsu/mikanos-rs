@@ -211,7 +211,12 @@ impl TaskPool {
     }
     fn sleep_task(&mut self, task_id: &TaskID) -> Option<()> {
         self.get_task_idx(task_id)
-            .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Sleeping))
+            .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Sleeping))?;
+        let current_task_id = self.get_current_task_idx();
+        if current_task_id == *task_id {
+            self.switch_task();
+        }
+        Some(())
     }
     fn wake_up(&mut self, task_id: &TaskID) -> Option<()> {
         self.get_task_idx(task_id)
