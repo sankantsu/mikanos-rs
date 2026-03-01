@@ -79,6 +79,7 @@ pub type TaskFunc = fn();
 #[derive(Clone, Copy)]
 pub enum TaskDescriptor {
     Main,
+    Idle,
     Func(TaskFunc),
 }
 
@@ -122,27 +123,48 @@ pub struct Task {
     status: TaskStatus,
 }
 
+pub fn idle_task() {
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
+
 impl Task {
+    fn init_context(ctx: &mut TaskContext, rip: u64, stack_ptr: u64) {
+        unsafe {
+            ctx.rip = rip;
+            let mut cr3: u64;
+            core::arch::asm!(
+                "mov rax, cr3",
+                out("rax") cr3,
+            );
+            ctx.cr3 = cr3;
+            ctx.rflags = 0x202; // IF=1
+            ctx.cs = 0x08;
+            ctx.ss = 0;
+            ctx.rsp = stack_ptr;
+        }
+    }
+
     pub fn new(desc: TaskDescriptor) -> Self {
         let task_stack: alloc::vec::Vec<u64> = alloc::vec![0; 1024];
         let mut task_ctx = TaskContext::new();
 
         match desc {
             TaskDescriptor::Main => {}
+            TaskDescriptor::Idle => {
+                Self::init_context(
+                    &mut task_ctx,
+                    idle_task as u64,
+                    task_stack.as_ptr() as u64 + 8 * 1024,
+                );
+            }
             TaskDescriptor::Func(task) => {
-                unsafe {
-                    task_ctx.rip = task as u64;
-                    let mut cr3: u64;
-                    core::arch::asm!(
-                        "mov rax, cr3",
-                        out("rax") cr3,
-                    );
-                    task_ctx.cr3 = cr3;
-                    task_ctx.rflags = 0x202; // IF=1
-                    task_ctx.cs = 0x08;
-                    task_ctx.ss = 0;
-                    task_ctx.rsp = task_stack.as_ptr() as u64 + 8 * 1024;
-                }
+                Self::init_context(
+                    &mut task_ctx,
+                    task as u64,
+                    task_stack.as_ptr() as u64 + 8 * 1024,
+                );
             }
         }
         let task_id = allocate_task_id();
@@ -162,15 +184,20 @@ impl Task {
 pub struct TaskPool {
     tasks: alloc::vec::Vec<Task>,
     current_task_idx: usize,
+    idle_task_id: TaskID,
 }
 
 impl TaskPool {
     pub fn new() -> Self {
         let mut tasks = alloc::vec::Vec::new();
+        let idle_task = Task::new(TaskDescriptor::Idle);
+        let idle_task_id = idle_task.id;
+        tasks.push(idle_task);
         tasks.push(Task::new(TaskDescriptor::Main));
         Self {
             tasks,
-            current_task_idx: 0,
+            current_task_idx: 1, // Main task
+            idle_task_id,
         }
     }
     pub fn add_task(&mut self, task: Task) {
@@ -210,6 +237,9 @@ impl TaskPool {
         }
     }
     fn sleep_task(&mut self, task_id: &TaskID) -> Option<()> {
+        if *task_id == self.idle_task_id {
+            return None;
+        }
         self.get_task_idx(task_id)
             .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Sleeping))?;
         let current_task_id = self.get_current_task_id();
