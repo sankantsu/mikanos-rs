@@ -170,12 +170,10 @@ pub extern "C" fn kernel_main_new_stack(
             let msg = alloc::format!("(Task A) count={}\n", cnt);
             serial_print!("{}", msg);
         }
-        // TODO: Add idle task.
-        // If all tasks sleep, swtich_task() loops forever.
-        // if cnt == 200 {
-        //     crate::serial_println!("Sleep Task C...");
-        //     task::sleep_task(&task_c_id);
-        // }
+        if cnt == 200 {
+            crate::serial_println!("Sleep Task C...");
+            task::sleep_task(&task_c_id);
+        }
         if cnt == 400 {
             crate::serial_println!("Sleep Task B...");
             task::sleep_task(&task_b_id);
