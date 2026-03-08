@@ -145,8 +145,15 @@ pub extern "C" fn kernel_main_new_stack(
                 .set_consumer(main_task_id)
         })
     }
-    let task_b_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_b)));
-    let task_c_id = task::add_task(task::Task::new(task::TaskDescriptor::Func(task::task_c)));
+    let task_b_c_priority = 10;
+    let task_b_id = task::add_task(task::Task::new(
+        task::TaskDescriptor::Func(task::task_b),
+        task_b_c_priority,
+    ));
+    let task_c_id = task::add_task(task::Task::new(
+        task::TaskDescriptor::Func(task::task_c),
+        task_b_c_priority,
+    ));
 
     let mut shadow_buffer = ShadowBuffer::new(
         frame_buffer.get_pixels_per_scan_line(),
