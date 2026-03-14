@@ -1,4 +1,4 @@
-use alloc::collections::BinaryHeap;
+use alloc::collections::{BTreeMap, BinaryHeap};
 use x86_64::instructions::interrupts::without_interrupts;
 
 pub const TASK_TIMEOUT_INTERVAL: u64 = 10;
@@ -90,7 +90,7 @@ pub enum TaskStatus {
     Sleeping,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, PartialOrd, Ord)]
 pub struct TaskID {
     id: u64,
 }
@@ -220,7 +220,7 @@ impl Ord for TaskHandle {
 
 #[derive(Debug)]
 pub struct TaskPool {
-    tasks: alloc::vec::Vec<Task>,
+    tasks: BTreeMap<TaskID, Task>,
     ready_queue: BinaryHeap<TaskHandle>,
     current_task_handle: TaskHandle,
     idle_task_id: TaskID,
@@ -236,7 +236,7 @@ impl TaskPool {
         let main_task = Task::new(TaskDescriptor::Main, main_task_priority);
         let main_task_handle = TaskHandle::new(&main_task);
         let mut task_pool = Self {
-            tasks: alloc::vec::Vec::new(),
+            tasks: BTreeMap::new(),
             ready_queue: BinaryHeap::new(),
             current_task_handle: main_task_handle,
             idle_task_id,
@@ -251,29 +251,23 @@ impl TaskPool {
 
         let handle = TaskHandle::new(&task);
         self.ready_queue.push(handle);
-        self.tasks.push(task);
-    }
-    fn get_task_idx(&self, task_id: &TaskID) -> Option<usize> {
-        self.tasks.iter().position(|task| task.id == *task_id)
+        self.tasks.insert(task.id, task);
     }
     pub fn switch_task(&mut self) {
         // crate::serial_println!("{:?}", &self.ready_queue);
         let current_task_id = self.get_current_task_id();
-        let current_task_idx = self.get_task_idx(&current_task_id).unwrap();
-        let current_task_handle = TaskHandle::new(&self.tasks[current_task_idx]);
+        let current_task_handle = TaskHandle::new(self.tasks.get(&current_task_id).unwrap());
         self.ready_queue.push(current_task_handle);
 
         let next_task_handle = loop {
             let task_handle = self.ready_queue.pop().unwrap();
-            let task_idx = self.get_task_idx(&task_handle.id).unwrap();
-            let status = self.tasks[task_idx].status;
+            let status = self.tasks.get(&task_handle.id).unwrap().status;
             if status == TaskStatus::Sleeping {
                 continue;
             }
             break task_handle;
         };
         let next_task_id = next_task_handle.id;
-        let next_task_idx = self.get_task_idx(&next_task_id).unwrap();
 
         self.current_task_handle = next_task_handle;
         if next_task_id == current_task_id {
@@ -281,20 +275,27 @@ impl TaskPool {
             // Return directly to the timer ISR, which will resume the interrupted routine via iretq.
             return;
         }
-        if next_task_idx < current_task_idx {
-            let (left, right) = self.tasks.split_at_mut(current_task_idx);
-            switch_context(&mut left[next_task_idx].context, &mut right[0].context);
+
+        let (next_task, current_task) = if next_task_id < current_task_id {
+            let mut range = self.tasks.range_mut(next_task_id..=current_task_id);
+            let next = range.next().unwrap().1;
+            let current = range.next_back().unwrap().1;
+            (next, current)
         } else {
-            let (left, right) = self.tasks.split_at_mut(next_task_idx);
-            switch_context(&mut right[0].context, &mut left[current_task_idx].context);
-        }
+            let mut range = self.tasks.range_mut(current_task_id..=next_task_id);
+            let current = range.next().unwrap().1;
+            let next = range.next_back().unwrap().1;
+            (next, current)
+        };
+        switch_context(&mut next_task.context, &mut current_task.context);
     }
     fn sleep_task(&mut self, task_id: &TaskID) -> Option<()> {
         if *task_id == self.idle_task_id {
             return None;
         }
-        self.get_task_idx(task_id)
-            .map(|task_idx| self.tasks[task_idx].set_status(TaskStatus::Sleeping))?;
+        self.tasks
+            .get_mut(task_id)
+            .map(|task| task.set_status(TaskStatus::Sleeping))?;
         let current_task_id = self.get_current_task_id();
         if current_task_id == *task_id {
             self.switch_task();
@@ -302,9 +303,9 @@ impl TaskPool {
         Some(())
     }
     fn wake_up(&mut self, task_id: &TaskID) -> Option<()> {
-        self.get_task_idx(task_id).map(|task_idx| {
-            self.tasks[task_idx].set_status(TaskStatus::Running);
-            let handle = TaskHandle::new(&self.tasks[task_idx]);
+        self.tasks.get_mut(task_id).map(|task| {
+            task.set_status(TaskStatus::Running);
+            let handle = TaskHandle::new(task);
             self.ready_queue.push(handle);
         })
     }
