@@ -7,16 +7,23 @@ usage() {
   echo ""
   echo "Options:"
   echo "  --wait-debugger    Stop execution at start and wait for a debugger connection (adds -s -S to QEMU)"
+  echo "  --build-only       Run only /"cargo build/" and then exit"
   exit 1
 }
 
 WAIT_DEBUGGER=0
+BUILD_ONLY=0
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --wait-debugger)
       WAIT_DEBUGGER=1
       shift
       ;;
+	--build-only)
+	  BUILD_ONLY=1
+	  shift
+	  ;;
     *)
       usage
       ;;
@@ -35,6 +42,11 @@ popd
 # Build kernel
 pushd mikanos-rs-kernel && cargo build
 popd
+
+
+if [ "$BUILD_ONLY" -eq 1 ]; then
+	exit
+fi
 
 # Make EFI system partition
 mkdir -p esp/efi/boot
